@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/imuniqueshiv/MaintainerAI/security/advisories/new
+    about: Please report security issues privately via GitHub Security Advisories.
+  - name: Ask a question
+    url: https://github.com/imuniqueshiv/MaintainerAI/discussions/new?category=q-a
+    about: Use Discussions for general questions and help.
+  - name: Share an idea
+    url: https://github.com/imuniqueshiv/MaintainerAI/discussions/new?category=ideas
+    about: Propose ideas that are not yet ready as formal feature requests.
+  - name: Documentation
+    url: https://github.com/imuniqueshiv/MaintainerAI/blob/main/docs
+    about: Browse project documentation before opening an issue.

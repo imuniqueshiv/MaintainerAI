@@ -1,0 +1,57 @@
+name: Performance
+description: Report a performance problem or regression in responsiveness
+title: "[Performance]: "
+labels: ["performance", "needs triage"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What feels slow or resource-heavy?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: How can we observe the performance issue?
+    validations:
+      required: true
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact area
+      options:
+        - Page load
+        - Navigation / routing
+        - Rendering / UI jank
+        - API / data fetching
+        - Build time
+        - Docker / runtime
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Measurements
+      description: Timing data, Lighthouse scores, memory usage, or profiler screenshots.
+      placeholder: |
+        Route: /issues
+        LCP: ~4.2s on cold load
+        Device: M-series laptop / Chrome
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      placeholder: 0.1.0 or abc1234
+    validations:
+      required: true
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+    validations:
+      required: false

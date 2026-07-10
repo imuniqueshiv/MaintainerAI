@@ -1,0 +1,53 @@
+name: Security
+description: Non-sensitive security improvement request (NOT for active vulnerabilities)
+title: "[Security]: "
+labels: ["security", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Active vulnerabilities must NOT be filed here.**
+        Use [GitHub Security Advisories](https://github.com/imuniqueshiv/MaintainerAI/security/advisories/new) or email security@maintainerai.dev.
+        This form is for hardening ideas, dependency concerns, and public security improvements that do not expose an exploit.
+  - type: checkboxes
+    id: not_vuln
+    attributes:
+      label: Confirmation
+      options:
+        - label: This is NOT an active vulnerability disclosure (I will use the private advisory channel for those)
+          required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What security improvement are you proposing?
+    validations:
+      required: true
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Rationale
+      description: Why does this matter for MaintainerAI users or self-hosters?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Concrete steps, config changes, or references (OWASP, RFCs, advisories).
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Authentication / authorization
+        - Secrets / credentials
+        - Dependencies
+        - Docker / deployment
+        - CI / supply chain
+        - Documentation
+        - Other
+    validations:
+      required: true

@@ -1,0 +1,57 @@
+name: Configuration
+description: Report a configuration, environment, or setup problem
+title: "[Config]: "
+labels: ["configuration", "needs triage"]
+body:
+  - type: dropdown
+    id: config_area
+    attributes:
+      label: Configuration area
+      options:
+        - Environment variables
+        - GitHub App
+        - AI provider
+        - Docker / Compose
+        - Dev Container / Codespaces
+        - CI / GitHub Actions
+        - Editor / tooling
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What configuration is incorrect, unclear, or failing?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected configuration behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior / error output
+      description: Redact secrets. Paste sanitized logs only.
+    validations:
+      required: true
+  - type: textarea
+    id: config_snippet
+    attributes:
+      label: Relevant configuration (sanitized)
+      description: Example `.env` keys (values redacted), compose overrides, or app settings.
+      render: shell
+    validations:
+      required: false
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I removed all secrets, tokens, and private keys from this report
+          required: true
+        - label: I followed docs/configuration.md and docs/installation.md
+          required: true

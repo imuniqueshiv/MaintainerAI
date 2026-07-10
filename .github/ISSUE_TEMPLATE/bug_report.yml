@@ -1,0 +1,108 @@
+name: Bug Report
+description: Report a bug or unexpected behavior in MaintainerAI
+title: "[Bug]: "
+labels: ["bug", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve MaintainerAI. Please search existing issues before filing a new one.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: A clear and concise description of the bug.
+      placeholder: When I open the issues page, the priority badge shows the wrong color...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact steps we can follow.
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened, including error messages if any.
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Blocker — app unusable
+        - High — major feature broken
+        - Medium — workaround exists
+        - Low — minor / cosmetic
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: MaintainerAI version
+      description: Release tag, commit SHA, or `main`.
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - Local (pnpm dev)
+        - Docker Compose
+        - Production / self-hosted
+        - GitHub Codespaces
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: environment_details
+    attributes:
+      label: Environment details
+      description: OS, browser, Node.js version, pnpm version.
+      placeholder: |
+        OS: Windows 11
+        Browser: Chrome 126
+        Node: 20.18.0
+        pnpm: 9.15.0
+    validations:
+      required: false
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots / recordings
+      description: Drag and drop images or link to a recording.
+    validations:
+      required: false
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Anything else that might help.
+    validations:
+      required: false
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues and did not find a duplicate
+          required: true
+        - label: I am not reporting a security vulnerability (those go to SECURITY.md)
+          required: true

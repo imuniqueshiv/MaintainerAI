@@ -1,0 +1,60 @@
+name: Regression
+description: Something that used to work no longer works after a change
+title: "[Regression]: "
+labels: ["bug", "regression", "needs triage"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What broke?
+    validations:
+      required: true
+  - type: input
+    id: last_good
+    attributes:
+      label: Last known working version / commit
+      placeholder: 0.1.0 or abc1234
+    validations:
+      required: true
+  - type: input
+    id: first_bad
+    attributes:
+      label: First known broken version / commit
+      placeholder: 0.1.1 or def5678
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected (previous) behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual (current) behavior
+    validations:
+      required: true
+  - type: textarea
+    id: bisect
+    attributes:
+      label: Bisect notes
+      description: Optional git bisect results or suspected PR.
+    validations:
+      required: false
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I confirmed this worked on an earlier commit or release
+          required: true
+        - label: I searched for an existing regression report
+          required: true

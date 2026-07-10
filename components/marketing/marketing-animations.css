@@ -1,0 +1,71 @@
+@keyframes marketing-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes marketing-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.marketing-grid-bg {
+  background-image:
+    linear-gradient(to right, color-mix(in oklch, var(--border) 80%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklch, var(--border) 80%, transparent) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black 20%, transparent 75%);
+}
+
+.marketing-hero-glow {
+  background:
+    radial-gradient(ellipse 60% 50% at 70% 20%, color-mix(in oklch, var(--primary) 22%, transparent), transparent 70%),
+    radial-gradient(ellipse 40% 40% at 20% 60%, color-mix(in oklch, var(--accent) 12%, transparent), transparent 70%);
+}
+
+.marketing-float {
+  animation: marketing-float 6s ease-in-out infinite;
+}
+
+.marketing-float-delayed {
+  animation: marketing-float 7s ease-in-out 1s infinite;
+}
+
+.marketing-reveal {
+  animation: marketing-fade-up 0.7s ease-out both;
+}
+
+.marketing-card-hover {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.marketing-card-hover:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklch, var(--primary) 40%, var(--border));
+  box-shadow: 0 12px 40px -20px color-mix(in oklch, var(--primary) 35%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing-float,
+  .marketing-float-delayed,
+  .marketing-reveal {
+    animation: none !important;
+  }
+
+  .marketing-card-hover:hover {
+    transform: none;
+  }
+}

@@ -1,0 +1,39 @@
+name: Welcome
+
+on:
+  pull_request_target:
+    types: [opened]
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  welcome:
+    name: Welcome message
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Welcome first-time contributors
+        uses: actions/first-interaction@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          issue-message: |
+            Thanks for opening your first MaintainerAI issue.
+
+            Please make sure you filled out the issue form completely and searched for duplicates.
+            If this is a security concern, please use our private reporting process in SECURITY.md instead.
+
+            A maintainer will triage this soon. Welcome to the community.
+          pr-message: |
+            Thanks for opening your first MaintainerAI pull request.
+
+            Please ensure:
+            - The PR template is complete
+            - Commits follow Conventional Commits
+            - `pnpm lint`, `pnpm typecheck`, and `pnpm build` pass
+
+            A maintainer will review as soon as possible. We appreciate your contribution.

@@ -1,0 +1,39 @@
+title: "[Announcement]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Maintainers use this category for release notes, roadmap updates, and community announcements.
+  - type: input
+    id: headline
+    attributes:
+      label: Headline
+      description: Short announcement title.
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Announcement type
+      options:
+        - Release
+        - Roadmap update
+        - Community
+        - Security notice (non-advisory)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: Full announcement body. Include links to releases or docs.
+    validations:
+      required: true
+  - type: textarea
+    id: actions
+    attributes:
+      label: Call to action
+      description: What should readers do next?
+    validations:
+      required: false

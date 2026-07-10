@@ -1,0 +1,15 @@
+# Default owners for everything in the repository
+* @imuniqueshiv
+
+# Documentation
+/docs/ @imuniqueshiv
+*.md @imuniqueshiv
+
+# CI and repository automation
+/.github/ @imuniqueshiv
+
+# Application source
+/app/ @imuniqueshiv
+/components/ @imuniqueshiv
+/lib/ @imuniqueshiv
+/hooks/ @imuniqueshiv

@@ -1,0 +1,35 @@
+title: "[Idea]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share a product or community idea for MaintainerAI. For actionable work ready for implementation, prefer a Feature Request issue.
+  - type: textarea
+    id: idea
+    attributes:
+      label: Idea
+      description: What should we explore or build?
+      placeholder: It would help maintainers if...
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem it solves
+      description: Who benefits and why?
+    validations:
+      required: true
+  - type: textarea
+    id: approach
+    attributes:
+      label: Rough approach
+      description: Optional sketch of how it could work.
+    validations:
+      required: false
+  - type: textarea
+    id: questions
+    attributes:
+      label: Open questions
+      description: What do you want feedback on?
+    validations:
+      required: false

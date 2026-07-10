@@ -1,0 +1,33 @@
+title: "[Show and Tell]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Show how you use MaintainerAI, a plugin idea, a deployment setup, or a related tool you built.
+  - type: input
+    id: project_name
+    attributes:
+      label: Project or story name
+    validations:
+      required: true
+  - type: textarea
+    id: story
+    attributes:
+      label: What did you build or learn?
+      description: Share context, screenshots, and links.
+    validations:
+      required: true
+  - type: textarea
+    id: links
+    attributes:
+      label: Links
+      description: Repo, demo, blog post, or screenshots.
+    validations:
+      required: false
+  - type: checkboxes
+    id: permission
+    attributes:
+      label: Sharing
+      options:
+        - label: I have permission to share any screenshots or customer data included here
+          required: true

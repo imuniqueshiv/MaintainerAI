@@ -1,0 +1,25 @@
+# Dependencies and build output
+node_modules
+.next
+out
+dist
+build
+coverage
+.git
+.turbo
+.vercel
+*.md
+!README.md
+.vscode
+.idea
+.husky
+agent-transcripts
+terminals
+*.log
+.env
+.env*.local
+Dockerfile*
+docker-compose*
+.devcontainer
+docs
+.github
