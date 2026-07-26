@@ -1,58 +1,68 @@
 # Configuration
 
-MaintainerAI is configured primarily through environment variables.
+MaintainerAI is configured primarily through environment variables loaded by
+`server/config` (Zod-validated). Application code must import `config` /
+`getConfig()` instead of reading `process.env` directly.
 
 ## Loading order
 
-1. Process environment (Docker / host)
-2. `.env.local` (local development; gitignored)
-3. Defaults in application code where applicable
-
-Copy the example file:
+1. Process environment (Docker / host / CI)
+2. `.env` / `.env.local` (local development; gitignored)
+3. Schema defaults in `server/config/env.ts`
 
 ```bash
 cp .env.example .env.local
 ```
 
+For Docker Compose full stack, also copy to `.env` (Compose reads it for some workflows) or rely on `docker-compose.yml` service `environment` blocks.
+
 ## Application
 
-| Variable | Default | Description |
-| -------- | ------- | ----------- |
-| `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` | Public base URL of the app |
-| `NEXT_TELEMETRY_DISABLED` | `1` | Disables Next.js telemetry when set |
+| Variable                  | Default                 | Description                             |
+| ------------------------- | ----------------------- | --------------------------------------- |
+| `NODE_ENV`                | `development`           | `development` \| `test` \| `production` |
+| `APP_ENV`                 | mirrors `NODE_ENV`      | Logical environment label               |
+| `NEXT_PUBLIC_APP_URL`     | `http://localhost:3000` | Public base URL                         |
+| `PORT`                    | `3000`                  | HTTP port                               |
+| `HOSTNAME`                | `0.0.0.0`               | Bind host                               |
+| `NEXT_TELEMETRY_DISABLED` | —                       | Disables Next.js telemetry when set     |
+| `LOG_LEVEL`               | `info`                  | Pino level                              |
+| `LOG_PRETTY`              | auto in dev             | Pretty logs when true                   |
 
-## GitHub App
+## Infrastructure (Phase 1)
 
-| Variable | Required | Description |
-| -------- | -------- | ----------- |
-| `GITHUB_APP_ID` | For live sync | Numeric GitHub App ID |
-| `GITHUB_APP_CLIENT_ID` | For OAuth | App client ID |
-| `GITHUB_APP_CLIENT_SECRET` | For OAuth | App client secret |
-| `GITHUB_APP_PRIVATE_KEY` | For API auth | PEM private key (use `\n` for newlines in single-line env stores) |
-| `GITHUB_APP_WEBHOOK_SECRET` | For webhooks | Shared webhook secret |
-| `GITHUB_APP_SLUG` | Optional | App URL slug |
+| Variable                | Required            | Description                               |
+| ----------------------- | ------------------- | ----------------------------------------- |
+| `DATABASE_URL`          | For ready/worker    | PostgreSQL connection string              |
+| `REDIS_URL`             | For ready/worker    | Redis connection string                   |
+| `QUEUE_PREFIX`          | No (`maintainerai`) | BullMQ key prefix                         |
+| `WORKER_CONCURRENCY`    | No (`5`)            | Worker concurrency                        |
+| `INFRASTRUCTURE_STRICT` | No (`false`)        | Fail startup if DB/Redis missing          |
+| `SKIP_ENV_VALIDATION`   | No                  | Soft-parse env (used during `next build`) |
 
-## AI providers
+## Security / HTTP
 
-| Variable | Default | Description |
-| -------- | ------- | ----------- |
-| `AI_PROVIDER` | `openai` | `openai`, `anthropic`, `azure`, or `custom` |
-| `AI_API_KEY` | — | Provider API key |
-| `AI_MODEL` | `gpt-4o-mini` | Model identifier |
-| `AI_BASE_URL` | — | Optional custom base URL |
+| Variable               | Default | Description                                               |
+| ---------------------- | ------- | --------------------------------------------------------- |
+| `CORS_ORIGIN`          | `*`     | `*` or comma-separated origins                            |
+| `TRUST_PROXY`          | `false` | Trust `X-Forwarded-For` only behind a known reverse proxy |
+| `RATE_LIMIT_WINDOW_MS` | `60000` | Rate limit window                                         |
+| `RATE_LIMIT_MAX`       | `120`   | Max requests per window per key                           |
 
-Keep provider keys in a secret manager for production deployments.
+## Future milestones (optional, unused in Phase 1)
 
-## Optional integrations
+Documented in `.env.example`:
 
-| Variable | Description |
-| -------- | ----------- |
-| `DATABASE_URL` | Future persistence layer |
-| `REDIS_URL` | Future queue / cache |
-| `SENTRY_DSN` | Error monitoring |
+- Auth / OAuth: `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `GITHUB_OAUTH_*`
+- GitHub App: `GITHUB_APP_*`, `GITHUB_WEBHOOK_SECRET`
+- AI: `AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL`, `AI_BASE_URL`
+- Storage: `STORAGE_*`
+- Observability: `SENTRY_DSN`
 
 ## Validation tips
 
-- Restart the dev server after changing `.env.local`
-- Redact secrets before sharing logs in issues
-- Prefer separate credentials for development and production
+- Restart the process after changing env files
+- Redact secrets before sharing logs
+- Use separate credentials for development and production
+- `/api/ready` is the authoritative check that infrastructure is wired
+- See [Infrastructure](./infrastructure.md) for Compose and worker setup

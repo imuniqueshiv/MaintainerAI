@@ -64,12 +64,12 @@ Built for individuals, community teams, and organizations that care about sustai
 
 ## Screenshots
 
-| Dashboard | Issues | Pull Requests |
-| --------- | ------ | ------------- |
+| Dashboard                            | Issues                            | Pull Requests                            |
+| ------------------------------------ | --------------------------------- | ---------------------------------------- |
 | ![Dashboard](public/placeholder.svg) | ![Issues](public/placeholder.svg) | ![Pull Requests](public/placeholder.svg) |
 
-| Automation | Insights | Settings |
-| ---------- | -------- | -------- |
+| Automation                            | Insights                            | Settings                            |
+| ------------------------------------- | ----------------------------------- | ----------------------------------- |
 | ![Automation](public/placeholder.svg) | ![Insights](public/placeholder.svg) | ![Settings](public/placeholder.svg) |
 
 > Replace placeholders in `public/` and `docs/assets/` with real product captures as the UI stabilizes.
@@ -99,42 +99,35 @@ See [docs/architecture.md](./docs/architecture.md) for a deeper walkthrough.
 
 ## Tech Stack
 
-| Layer        | Technology                                      |
-| ------------ | ----------------------------------------------- |
-| Framework    | [Next.js](https://nextjs.org/) 16 (App Router)  |
-| Language     | [TypeScript](https://www.typescriptlang.org/)   |
-| UI           | React 19, Tailwind CSS 4, Base UI / shadcn-style components |
-| Icons        | Lucide React                                    |
-| Theming      | `next-themes`                                   |
-| Package mgr  | [pnpm](https://pnpm.io/)                        |
-| CI           | GitHub Actions                                  |
-| Containers   | Docker · Docker Compose · Dev Containers        |
+| Layer       | Technology                                                  |
+| ----------- | ----------------------------------------------------------- |
+| Framework   | [Next.js](https://nextjs.org/) 16 (App Router)              |
+| Language    | [TypeScript](https://www.typescriptlang.org/)               |
+| UI          | React 19, Tailwind CSS 4, Base UI / shadcn-style components |
+| Icons       | Lucide React                                                |
+| Theming     | `next-themes`                                               |
+| Package mgr | [pnpm](https://pnpm.io/)                                    |
+| CI          | GitHub Actions                                              |
+| Containers  | Docker · Docker Compose · Dev Containers                    |
 
 ## Folder Structure
 
 ```text
 MaintainerAI/
-├── app/                 # Next.js App Router pages and layouts
+├── app/                 # Next.js App Router pages, layouts, API routes
+│   └── api/             # Health, readiness, liveness, meta
 ├── components/          # UI and feature components
-│   ├── automation/
-│   ├── contributors/
-│   ├── copilot/
-│   ├── issues/
-│   ├── layout/
-│   ├── organization/
-│   ├── pr-review/
-│   ├── repository/
-│   ├── shared/
-│   └── ui/
+├── server/              # Backend infrastructure (config, db, cache, queue, …)
+├── prisma/              # Schema + migrations (DATABASE_DESIGN.md)
+├── scripts/             # Worker entrypoint and tooling
 ├── docs/                # Project documentation
 ├── hooks/               # React hooks
-├── lib/                 # Shared utilities and types
+├── lib/                 # Shared utilities, types, API client scaffold
+├── tests/               # Infrastructure unit tests (Vitest)
 ├── public/              # Static assets
 ├── .github/             # Issue templates, workflows, funding
-├── .devcontainer/       # Codespaces / Dev Container config
-├── .vscode/             # Editor recommendations
-├── Dockerfile
-├── docker-compose.yml
+├── Dockerfile           # web / worker / migrate targets
+├── docker-compose.yml   # postgres + redis + migrate + web + worker
 └── package.json
 ```
 
@@ -144,18 +137,50 @@ MaintainerAI/
 
 - Node.js 20+
 - pnpm 9+
+- Docker (optional, required for Postgres/Redis/worker)
+
+### UI only (mock data)
 
 ```bash
 git clone https://github.com/imuniqueshiv/MaintainerAI.git
 cd MaintainerAI
 pnpm install
-cp .env.example .env.local
+cp .env.example .env.local   # required — Next.js loads .env.local, never .env.example
 pnpm dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000).
+Visit [http://localhost:3000](http://localhost:3000). If port `3000` is busy, Next.js
+picks the next free port (e.g. `3001`, `3002`) — check the terminal for the exact URL.
 
-Full guide: [docs/installation.md](./docs/installation.md) · [docs/development.md](./docs/development.md)
+> `/api/ready` intentionally returns **HTTP 503** in this UI-only mode because
+> Postgres/Redis are not running. That is expected. For a green `/api/ready`, use
+> **Full infrastructure** below. Skipping `cp .env.example .env.local` yields
+> `DATABASE_URL not configured` — the env file is mandatory.
+
+### Full infrastructure (Phase 1)
+
+```bash
+cp .env.example .env.local   # or .env — either is loaded; .env.example is NOT
+docker compose up -d postgres redis
+pnpm install
+pnpm db:generate
+pnpm db:migrate:deploy
+pnpm dev          # terminal 1 — web UI + API
+pnpm worker       # terminal 2 — BullMQ worker
+```
+
+Verify the stack is ready (expect `HTTP 200` with `"ready":true`):
+
+```bash
+curl -i http://localhost:3000/api/ready
+pnpm infra:check   # direct DB + Redis + queue probe from the host
+```
+
+Host ports for local tooling: Postgres `5433`, Redis `6380` (see `.env.example`).
+
+Probes: `/api/live` · `/api/health` · `/api/ready` · `/api/v1/meta`
+
+Full guide: [docs/installation.md](./docs/installation.md) · [docs/infrastructure.md](./docs/infrastructure.md) · [docs/development.md](./docs/development.md)
 
 ## Docker Setup
 
@@ -163,7 +188,7 @@ Full guide: [docs/installation.md](./docs/installation.md) · [docs/development.
 docker compose up --build
 ```
 
-The app is served on port `3000` with a healthcheck configured.
+Starts PostgreSQL, Redis, migrations, the web app, and the worker on port `3000`.
 
 Details: [docs/docker.md](./docs/docker.md)
 
@@ -171,7 +196,7 @@ Details: [docs/docker.md](./docs/docker.md)
 
 MaintainerAI is designed to run on your own infrastructure:
 
-1. Build the production image or run `pnpm build && pnpm start`
+1. `docker compose up --build` (recommended) or `pnpm build && pnpm start` + `pnpm worker`
 2. Configure environment variables (see below)
 3. Place TLS termination at your reverse proxy
 4. Restrict network access and rotate secrets regularly
@@ -180,19 +205,17 @@ Guide: [docs/deployment.md](./docs/deployment.md)
 
 ## Environment Variables
 
-Copy `.env.example` to `.env.local` and adjust values:
+Copy `.env.example` to `.env.local` (or `.env` for Compose) and adjust values.
+Configuration is validated by `server/config` — do not read `process.env` in app code.
 
-| Variable | Description | Required |
-| -------- | ----------- | -------- |
-| `NEXT_PUBLIC_APP_URL` | Public app URL (e.g. `http://localhost:3000`) | Yes |
-| `GITHUB_APP_ID` | GitHub App ID | For GitHub App |
-| `GITHUB_APP_CLIENT_ID` | GitHub App OAuth client ID | For GitHub App |
-| `GITHUB_APP_CLIENT_SECRET` | GitHub App OAuth client secret | For GitHub App |
-| `GITHUB_APP_PRIVATE_KEY` | GitHub App private key (PEM) | For GitHub App |
-| `GITHUB_APP_WEBHOOK_SECRET` | Webhook secret | For GitHub App |
-| `AI_PROVIDER` | `openai` \| `anthropic` \| `azure` \| `custom` | For AI features |
-| `AI_API_KEY` | Provider API key | For AI features |
-| `AI_MODEL` | Model identifier | Optional |
+| Variable                | Description                            | Required                  |
+| ----------------------- | -------------------------------------- | ------------------------- |
+| `NEXT_PUBLIC_APP_URL`   | Public app URL                         | Yes                       |
+| `DATABASE_URL`          | PostgreSQL connection string           | For `/api/ready` + worker |
+| `REDIS_URL`             | Redis connection string                | For `/api/ready` + worker |
+| `QUEUE_PREFIX`          | BullMQ prefix (default `maintainerai`) | No                        |
+| `LOG_LEVEL`             | Pino log level                         | No                        |
+| `GITHUB_APP_*` / `AI_*` | Future milestones                      | Phase 2+                  |
 
 See [docs/configuration.md](./docs/configuration.md).
 
@@ -214,16 +237,21 @@ MaintainerAI is provider-agnostic. Configure `AI_PROVIDER` and `AI_API_KEY` for 
 
 ## Scripts
 
-| Script | Description |
-| ------ | ----------- |
-| `pnpm dev` | Start development server |
-| `pnpm build` | Production build |
-| `pnpm start` | Start production server |
-| `pnpm lint` | Run ESLint |
-| `pnpm typecheck` | Run TypeScript checks |
-| `pnpm format` | Format with Prettier |
-| `pnpm format:check` | Check formatting |
-| `pnpm prepare` | Install Husky hooks |
+| Script                   | Description                          |
+| ------------------------ | ------------------------------------ |
+| `pnpm dev`               | Start development server             |
+| `pnpm build`             | `prisma generate` + production build |
+| `pnpm start`             | Start production server              |
+| `pnpm worker`            | Start BullMQ worker                  |
+| `pnpm test`              | Run infrastructure unit tests        |
+| `pnpm lint`              | Run ESLint                           |
+| `pnpm typecheck`         | Run TypeScript checks                |
+| `pnpm db:generate`       | Generate Prisma client               |
+| `pnpm db:migrate`        | Create/apply migrations (dev)        |
+| `pnpm db:migrate:deploy` | Apply migrations (CI/prod)           |
+| `pnpm format`            | Format with Prettier                 |
+| `pnpm format:check`      | Check formatting                     |
+| `pnpm prepare`           | Install Husky hooks                  |
 
 ## Contributing
 
@@ -271,6 +299,7 @@ Thanks to everyone who helps build MaintainerAI.
 Sponsorship keeps the project sustainable.
 
 <!-- Update .github/FUNDING.yml with your real sponsor links -->
+
 - GitHub Sponsors: configure in [`.github/FUNDING.yml`](./.github/FUNDING.yml)
 - Open Collective / custom sponsors: add links here as they become available
 

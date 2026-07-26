@@ -1,8 +1,7 @@
 # Architecture
 
 MaintainerAI is a Next.js application focused on maintainer workflows for GitHub
-repositories. The current release prioritizes a polished UI foundation with
-clear extension points for GitHub App integration, AI providers, and automation.
+repositories. Phase 1 adds a production infrastructure layer beneath the existing UI.
 
 ## High-level diagram
 
@@ -19,34 +18,39 @@ clear extension points for GitHub App integration, AI providers, and automation.
 │  ┌────────────┬─────────────┬──────────────┬──────────────┐  │
 │  │ Dashboard  │ Issues/PRs  │ Automation   │ Settings     │  │
 │  └────────────┴─────────────┴──────────────┴──────────────┘  │
+│  API: /api/live · /api/health · /api/ready · /api/v1/meta    │
 │  Shared: layout, copilot panel, command palette, UI kit      │
-└─────────────────────────────┬────────────────────────────────┘
-                              │
-          ┌───────────────────┼───────────────────┐
-          ▼                   ▼                   ▼
-   GitHub App API      AI Providers         Future services
-   (installations,     (OpenAI /            (DB, queues,
-    webhooks, PRs)      Anthropic / ...)     plugins)
+└───────────────┬──────────────────┬───────────────────────────┘
+                │                  │
+                ▼                  ▼
+        server/* (infra)     Worker (BullMQ)
+        config·logger·db     infrastructure.heartbeat
+        cache·queue·security
+                │                  │
+                ▼                  ▼
+           PostgreSQL            Redis
 ```
 
 ## Source map
 
-| Area | Location | Responsibility |
-| ---- | -------- | -------------- |
-| Routes | `app/` | Pages and layouts |
-| Feature UI | `components/*` | Domain screens and widgets |
-| Primitives | `components/ui` | Buttons, cards, inputs, tabs |
-| Layout shell | `components/layout` | Sidebar and navbar |
-| Hooks | `hooks/` | Client-side behavior |
-| Domain helpers | `lib/` | Types, utils, mock data |
+| Area           | Location            | Responsibility                               |
+| -------------- | ------------------- | -------------------------------------------- |
+| Routes         | `app/`              | Pages and layouts                            |
+| API            | `app/api/`          | Health and meta (Phase 1)                    |
+| Feature UI     | `components/*`      | Domain screens and widgets                   |
+| Infrastructure | `server/*`          | Config, logging, errors, DB, Redis, queues   |
+| Prisma         | `prisma/`           | Schema + migrations                          |
+| Hooks          | `hooks/`            | Client-side behavior                         |
+| Domain helpers | `lib/`              | Types, utils, mock data, API client scaffold |
+| Worker         | `scripts/worker.ts` | Background job consumer                      |
 
 ## Data today vs tomorrow
 
-**Today:** many views are driven by typed mock data in `lib/mock-data.ts` so the
-UI can be developed and reviewed without live credentials.
+**Today (Phase 1):** product views still use typed mock data in `lib/mock-data.ts`.
+Infrastructure (Postgres, Redis, queues, health APIs) is live. See `MOCK_MIGRATION.md`.
 
-**Tomorrow:** GitHub App webhooks and APIs will replace mocks with live
-repository state, while keeping the same UI surfaces where possible.
+**Tomorrow:** GitHub App webhooks and APIs replace mocks with live repository state
+while keeping the same UI surfaces (Phases 2–6).
 
 ## Design principles
 
@@ -54,9 +58,14 @@ repository state, while keeping the same UI surfaces where possible.
 - Prefer additive features over breaking refactors
 - Keep secrets and provider credentials outside the repository
 - Make self-hosting a first-class path
+- Import `config` from `server/config` — never scatter `process.env` reads
 
 ## Related docs
 
-- [GitHub App](./github-app.md)
+- [Infrastructure](./infrastructure.md)
 - [Configuration](./configuration.md)
+- [Docker](./docker.md)
+- [GitHub App](./github-app.md)
 - [Roadmap](../ROADMAP.md)
+- [SYSTEM_ARCHITECTURE.md](../SYSTEM_ARCHITECTURE.md)
+- [PRODUCT_SPEC.md](../PRODUCT_SPEC.md)

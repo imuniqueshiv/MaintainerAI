@@ -28,5 +28,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Prisma client
+        run: pnpm db:generate
+        env:
+          DATABASE_URL: postgresql://maintainerai:maintainerai@localhost:5432/maintainerai?schema=public
+          SKIP_ENV_VALIDATION: "1"
+
       - name: Run typecheck
         run: pnpm typecheck
+        env:
+          SKIP_ENV_VALIDATION: "1"
+          DATABASE_URL: postgresql://maintainerai:maintainerai@localhost:5432/maintainerai?schema=public

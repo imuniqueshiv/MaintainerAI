@@ -10,3 +10,8 @@ yarn.lock
 *.min.js
 *.min.css
 public/**/*.svg
+Dockerfile
+Dockerfile.*
+.env
+.env.*
+prisma/migrations

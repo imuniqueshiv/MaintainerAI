@@ -1,20 +1,109 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: maintainerai-postgres
+    environment:
+      POSTGRES_USER: maintainerai
+      POSTGRES_PASSWORD: maintainerai
+      POSTGRES_DB: maintainerai
+    ports:
+      # Host port 5433 avoids conflicts with local Postgres installs on 5432.
+      - '5433:5432'
+    volumes:
+      - maintainerai_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U maintainerai -d maintainerai']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: maintainerai-redis
+    ports:
+      # Host port 6380 avoids conflicts with local Redis on 6379.
+      - '6380:6379'
+    volumes:
+      - maintainerai_redis:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrate
+    container_name: maintainerai-migrate
+    environment:
+      DATABASE_URL: postgresql://maintainerai:maintainerai@postgres:5432/maintainerai?schema=public
+      SKIP_ENV_VALIDATION: '1'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+    container_name: maintainerai-worker
+    environment:
+      NODE_ENV: production
+      APP_ENV: production
+      DATABASE_URL: postgresql://maintainerai:maintainerai@postgres:5432/maintainerai?schema=public
+      REDIS_URL: redis://redis:6379
+      QUEUE_PREFIX: maintainerai
+      WORKER_CONCURRENCY: '5'
+      LOG_LEVEL: info
+      INFRASTRUCTURE_STRICT: 'true'
+      MAINTAINERAI_WORKER: '1'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
   maintainerai:
     build:
       context: .
       dockerfile: Dockerfile
+      target: runner
     image: maintainerai:local
     container_name: maintainerai
     ports:
-      - "3000:3000"
-    env_file:
-      - .env.example
+      - '3000:3000'
     environment:
       NODE_ENV: production
+      APP_ENV: production
       NEXT_PUBLIC_APP_URL: http://localhost:3000
-      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_TELEMETRY_DISABLED: '1'
+      DATABASE_URL: postgresql://maintainerai:maintainerai@postgres:5432/maintainerai?schema=public
+      REDIS_URL: redis://redis:6379
+      QUEUE_PREFIX: maintainerai
+      LOG_LEVEL: info
+      CORS_ORIGIN: '*'
+      TRUST_PROXY: 'false'
+      INFRASTRUCTURE_STRICT: 'false'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:3000/api/live']
       interval: 30s
       timeout: 5s
       retries: 3
@@ -22,23 +111,32 @@ services:
     restart: unless-stopped
 
   maintainerai-dev:
-    profiles: ["dev"]
+    profiles: ['dev']
     image: node:20-alpine
     working_dir: /app
-    command: sh -c "corepack enable && corepack prepare pnpm@9 --activate && pnpm install && pnpm dev --hostname 0.0.0.0"
+    command: sh -c "corepack enable && corepack prepare pnpm@9 --activate && pnpm install && pnpm prisma generate && pnpm dev --hostname 0.0.0.0"
     volumes:
       - .:/app
       - maintainerai_node_modules:/app/node_modules
     ports:
-      - "3000:3000"
-    env_file:
-      - .env.example
+      - '3000:3000'
     environment:
       NODE_ENV: development
+      APP_ENV: development
       NEXT_PUBLIC_APP_URL: http://localhost:3000
-      WATCHPACK_POLLING: "true"
+      WATCHPACK_POLLING: 'true'
+      DATABASE_URL: postgresql://maintainerai:maintainerai@postgres:5432/maintainerai?schema=public
+      REDIS_URL: redis://redis:6379
+      QUEUE_PREFIX: maintainerai
+      LOG_LEVEL: debug
+      LOG_PRETTY: 'true'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:3000/api/live']
       interval: 30s
       timeout: 5s
       retries: 3
@@ -46,3 +144,5 @@ services:
 
 volumes:
   maintainerai_node_modules:
+  maintainerai_pgdata:
+  maintainerai_redis:

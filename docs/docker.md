@@ -1,52 +1,69 @@
 # Docker
 
 MaintainerAI ships with a multi-stage `Dockerfile` and `docker-compose.yml` for
-production-like and development container workflows.
+production-like and development container workflows, including PostgreSQL, Redis,
+migrations, and the BullMQ worker (Phase 1 infrastructure).
 
 ## Prerequisites
 
 - Docker Engine 24+ or Docker Desktop
 - Docker Compose v2
 
-## Production Compose
-
-Build and run the production image:
+## Full stack (recommended)
 
 ```bash
-cp .env.example .env.local
+cp .env.example .env
 docker compose up --build
 ```
 
-The service listens on [http://localhost:3000](http://localhost:3000).
+Services:
 
-Healthchecks probe `http://127.0.0.1:3000/` every 30 seconds.
+| Service        | Role                                |
+| -------------- | ----------------------------------- |
+| `postgres`     | PostgreSQL 16                       |
+| `redis`        | Redis 7                             |
+| `migrate`      | `prisma migrate deploy` (one-shot)  |
+| `maintainerai` | Next.js web (standalone)            |
+| `worker`       | BullMQ worker (`scripts/worker.ts`) |
+
+The web app listens on [http://localhost:3000](http://localhost:3000).
+
+Healthchecks:
+
+- Container: `GET /api/live`
+- Readiness (manual): `GET /api/ready`
+- Aggregate: `GET /api/health`
+
+## Infrastructure only (local Node + Docker deps)
+
+```bash
+docker compose up -d postgres redis
+pnpm db:generate
+pnpm db:migrate:deploy
+pnpm dev
+pnpm worker
+```
 
 ## Development Compose profile
 
-Run the app with bind mounts for live development:
-
 ```bash
-docker compose --profile dev up maintainerai-dev
+docker compose --profile dev up postgres redis maintainerai-dev
 ```
 
-## Build the image manually
+## Build targets
 
-```bash
-docker build -t maintainerai:local .
-docker run --rm -p 3000:3000 --env-file .env.example maintainerai:local
-```
-
-## Image design
-
-| Stage    | Purpose                                      |
-| -------- | -------------------------------------------- |
-| `base`   | Node 20 Alpine + pnpm via Corepack           |
-| `deps`   | Install dependencies from the lockfile       |
-| `builder`| `pnpm build` with Next.js `standalone` output|
-| `runner` | Minimal runtime user `nextjs` + healthcheck  |
+| Stage     | Purpose                                       |
+| --------- | --------------------------------------------- |
+| `base`    | Node 20 Alpine + pnpm                         |
+| `deps`    | Frozen lockfile install                       |
+| `builder` | `prisma generate` + `next build` (standalone) |
+| `migrate` | Migration runner image                        |
+| `worker`  | Queue worker image                            |
+| `runner`  | Minimal web runtime (`nextjs` user)           |
 
 ## Notes
 
-- Do not bake secrets into images. Pass them at runtime with `--env-file` or your orchestrator.
-- For Kubernetes, start from this image and add your own Deployment / Service manifests.
+- Do not bake secrets into images.
+- UI pages still use mock data in Phase 1; infrastructure endpoints are live.
+- See [infrastructure.md](./infrastructure.md) and [configuration.md](./configuration.md).
 - See [deployment.md](./deployment.md) for reverse-proxy and TLS guidance.

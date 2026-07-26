@@ -1,0 +1,928 @@
+// MaintainerAI Prisma schema — derived from DATABASE_DESIGN.md
+// Do not invent tables beyond the design document.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum OrganizationType {
+  user
+  organization
+}
+
+enum MembershipRole {
+  admin
+  maintainer
+  developer
+  viewer
+}
+
+enum InstallationStatus {
+  active
+  suspended
+  deleted
+}
+
+enum SyncStatus {
+  idle
+  syncing
+  completed
+  failed
+}
+
+enum IssueState {
+  draft
+  open
+  claimed
+  in_progress @map("in-progress")
+  review
+  blocked
+  ready_to_merge @map("ready-to-merge")
+  closed
+}
+
+enum IssuePriority {
+  low
+  medium
+  high
+  critical
+}
+
+enum Difficulty {
+  easy
+  medium
+  hard
+  unknown
+}
+
+enum IssueEventType {
+  status_change @map("status-change")
+  comment
+  assignment
+  label_change @map("label-change")
+  review
+}
+
+enum IssueDependencyType {
+  depends_on @map("depends-on")
+  blocks
+}
+
+enum PullRequestState {
+  draft
+  open
+  review
+  approved
+  merged
+  closed
+}
+
+enum CiStatus {
+  success
+  failure
+  pending
+}
+
+enum FileChangeStatus {
+  added
+  modified
+  deleted
+}
+
+enum CheckStatus {
+  passed
+  failed
+  pending
+}
+
+enum ReviewState {
+  approve
+  request_changes @map("request-changes")
+  comment
+}
+
+enum ApprovalRecommendation {
+  approve
+  request_changes @map("request-changes")
+  comment
+}
+
+enum SecurityRisk {
+  critical
+  high
+  medium
+  low
+  none
+}
+
+enum HealthCiStatus {
+  passing
+  failing
+  unknown
+}
+
+enum InsightSeverity {
+  low
+  medium
+  high
+}
+
+enum AutomationStatus {
+  active
+  inactive
+  error
+}
+
+enum AutomationNodeType {
+  trigger
+  action
+  condition
+  notification
+}
+
+enum NodeStatus {
+  active
+  inactive
+}
+
+enum AutomationRunStatus {
+  success
+  failure
+  skipped
+}
+
+enum AiMessageRole {
+  user
+  assistant
+  system
+}
+
+enum NotificationType {
+  pr_merged
+  issue_assigned
+  review_requested
+  automation
+  system
+}
+
+enum WebhookEventStatus {
+  received
+  processing
+  processed
+  failed
+}
+
+// ---------------------------------------------------------------------------
+// Identity & Tenancy
+// ---------------------------------------------------------------------------
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  githubId  BigInt   @unique
+  login     String   @unique
+  name      String?
+  email     String?  @unique
+  avatarUrl String?
+  isBot     Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts         Account[]
+  sessions         Session[]
+  memberships      Membership[]
+  ownedOrgs        Organization[]     @relation("OrganizationOwner")
+  notifications    Notification[]
+  aiConversations  AIConversation[]
+  auditLogs        AuditLog[]         @relation("AuditActor")
+}
+
+model Account {
+  id                String  @id @default(uuid()) @db.Uuid
+  userId            String  @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(uuid()) @db.Uuid
+  sessionToken String   @unique
+  userId       String   @db.Uuid
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Organization {
+  id          String           @id @default(uuid()) @db.Uuid
+  githubId    BigInt           @unique
+  login       String           @unique
+  name        String?
+  type        OrganizationType
+  avatarUrl   String?
+  ownerUserId String?          @db.Uuid
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  owner               User?                @relation("OrganizationOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  memberships         Membership[]
+  installations       Installation[]
+  repositories        Repository[]
+  workflows           Workflow[]
+  pluginInstallations PluginInstallation[]
+  auditLogs           AuditLog[]
+  apiKeys             ApiKey[]
+
+  @@index([ownerUserId])
+}
+
+model Membership {
+  userId         String         @db.Uuid
+  organizationId String         @db.Uuid
+  role           MembershipRole
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, organizationId])
+  @@index([organizationId])
+}
+
+// ---------------------------------------------------------------------------
+// GitHub Installation
+// ---------------------------------------------------------------------------
+
+model Installation {
+  id                   String             @id @default(uuid()) @db.Uuid
+  githubInstallationId BigInt             @unique
+  organizationId       String             @db.Uuid
+  status               InstallationStatus @default(active)
+  permissions          Json
+  webhookEvents        String[]
+  rateLimitRemaining   Int?
+  rateLimitLimit       Int?
+  lastSyncAt           DateTime?
+  syncStatus           SyncStatus         @default(idle)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  organization     Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  repositories     Repository[]
+  deliveredEvents  WebhookEvent[]
+
+  @@index([organizationId])
+}
+
+// ---------------------------------------------------------------------------
+// Repository
+// ---------------------------------------------------------------------------
+
+model Repository {
+  id                        String    @id @default(uuid()) @db.Uuid
+  githubId                  BigInt    @unique
+  installationId            String    @db.Uuid
+  organizationId            String    @db.Uuid
+  name                      String
+  owner                     String
+  fullName                  String    @unique
+  description               String?
+  url                       String
+  language                  String?
+  isPrivate                 Boolean   @default(false)
+  stars                     Int       @default(0)
+  forks                     Int       @default(0)
+  openIssues                Int       @default(0)
+  openPRs                   Int       @default(0)
+  collaborators             Int       @default(0)
+  topics                    String[]
+  healthScore               Int?
+  automationEnabled         Boolean   @default(false)
+  automationIssuesResolved  Int       @default(0)
+  automationPRsMerged       Int       @default(0)
+  lastUpdatedGitHub         DateTime?
+  deletedAt                 DateTime?
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  installation        Installation         @relation(fields: [installationId], references: [id], onDelete: Restrict)
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  labels              Label[]
+  issues              Issue[]
+  pullRequests        PullRequest[]
+  repoContributors    RepoContributor[]
+  healthRecords       RepositoryHealth[]
+  aiInsights          AIInsight[]
+  workflows           Workflow[]
+  automations         Automation[]
+  aiConversations     AIConversation[]
+  notifications       Notification[]
+  pluginInstallations PluginInstallation[]
+
+  @@index([organizationId])
+  @@index([installationId])
+}
+
+model Label {
+  id           String  @id @default(uuid()) @db.Uuid
+  repositoryId String  @db.Uuid
+  name         String
+  color        String
+  description  String?
+
+  repository Repository   @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  issues     IssueLabel[]
+
+  @@unique([repositoryId, name])
+}
+
+// ---------------------------------------------------------------------------
+// Contributor
+// ---------------------------------------------------------------------------
+
+model Contributor {
+  id           String    @id @default(uuid()) @db.Uuid
+  githubId     BigInt    @unique
+  login        String    @unique
+  name         String?
+  avatarUrl    String?
+  bio          String?
+  location     String?
+  company      String?
+  followers    Int       @default(0)
+  following    Int       @default(0)
+  isBotAccount Boolean   @default(false)
+  joinedAt     DateTime?
+  lastActive   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  repoContributors RepoContributor[]
+  badges           ContributorBadge[]
+  authoredIssues   Issue[]            @relation("IssueAuthor")
+  assignedIssues   IssueAssignee[]
+  authoredPrs      PullRequest[]      @relation("PullRequestAuthor")
+  reviews          PrReview[]
+  reviewComments   ReviewComment[]
+}
+
+model RepoContributor {
+  repositoryId      String  @db.Uuid
+  contributorId     String  @db.Uuid
+  contributions     Int     @default(0)
+  issuesOpened      Int     @default(0)
+  issuesClosed      Int     @default(0)
+  prOpened          Int     @default(0)
+  prMerged          Int     @default(0)
+  prRejected        Int     @default(0)
+  reviewCount       Int     @default(0)
+  averageReviewTime String?
+  averageMergeTime  String?
+  isMaintainer      Boolean @default(false)
+
+  repository  Repository  @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  contributor Contributor @relation(fields: [contributorId], references: [id], onDelete: Cascade)
+
+  @@id([repositoryId, contributorId])
+  @@index([contributorId])
+}
+
+model ContributorBadge {
+  id            String   @id @default(uuid()) @db.Uuid
+  contributorId String   @db.Uuid
+  type          String
+  earnedAt      DateTime @default(now())
+
+  contributor Contributor @relation(fields: [contributorId], references: [id], onDelete: Cascade)
+
+  @@unique([contributorId, type])
+}
+
+// ---------------------------------------------------------------------------
+// Issues
+// ---------------------------------------------------------------------------
+
+model Issue {
+  id                        String         @id @default(uuid()) @db.Uuid
+  githubId                  BigInt         @unique
+  repositoryId              String         @db.Uuid
+  number                    Int
+  title                     String
+  description               String?        @db.Text
+  state                     IssueState     @default(open)
+  priority                  IssuePriority?
+  estimatedDifficulty       Difficulty     @default(unknown)
+  estimatedCompletionTime   String?
+  potentialFilesAffected    String[]
+  commentsCount             Int            @default(0)
+  aiGenerated               Boolean        @default(false)
+  authorContributorId       String?        @db.Uuid
+  createdAt                 DateTime       @default(now())
+  updatedAt                 DateTime       @updatedAt
+
+  repository   Repository            @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  author       Contributor?          @relation("IssueAuthor", fields: [authorContributorId], references: [id], onDelete: SetNull)
+  labels       IssueLabel[]
+  assignees    IssueAssignee[]
+  events       IssueEvent[]
+  checklist    IssueChecklistItem[]
+  dependencies IssueDependency[]     @relation("IssueDepends")
+  dependents   IssueDependency[]     @relation("IssueDependedOn")
+  closedByPrs  PrClosesIssue[]
+
+  @@unique([repositoryId, number])
+  @@index([repositoryId, state])
+  @@index([authorContributorId])
+}
+
+model IssueLabel {
+  issueId String @db.Uuid
+  labelId String @db.Uuid
+
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  label Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([issueId, labelId])
+}
+
+model IssueAssignee {
+  issueId       String @db.Uuid
+  contributorId String @db.Uuid
+
+  issue       Issue       @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  contributor Contributor @relation(fields: [contributorId], references: [id], onDelete: Cascade)
+
+  @@id([issueId, contributorId])
+}
+
+model IssueDependency {
+  issueId          String              @db.Uuid
+  dependsOnIssueId String              @db.Uuid
+  type             IssueDependencyType
+
+  issue     Issue @relation("IssueDepends", fields: [issueId], references: [id], onDelete: Cascade)
+  dependsOn Issue @relation("IssueDependedOn", fields: [dependsOnIssueId], references: [id], onDelete: Cascade)
+
+  @@id([issueId, dependsOnIssueId, type])
+}
+
+model IssueEvent {
+  id          String        @id @default(uuid()) @db.Uuid
+  issueId     String        @db.Uuid
+  type        IssueEventType
+  title       String
+  description String?
+  actor       String
+  metadata    Json?
+  createdAt   DateTime      @default(now())
+
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  @@index([issueId, createdAt])
+}
+
+model IssueChecklistItem {
+  id        String    @id @default(uuid()) @db.Uuid
+  issueId   String    @db.Uuid
+  title     String
+  completed Boolean   @default(false)
+  checkedAt DateTime?
+
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  @@index([issueId])
+}
+
+// ---------------------------------------------------------------------------
+// Pull Requests
+// ---------------------------------------------------------------------------
+
+model PullRequest {
+  id                     String           @id @default(uuid()) @db.Uuid
+  githubId               BigInt           @unique
+  repositoryId           String           @db.Uuid
+  number                 Int
+  title                  String
+  description            String?          @db.Text
+  state                  PullRequestState @default(open)
+  authorContributorId    String?          @db.Uuid
+  additions              Int              @default(0)
+  deletions              Int              @default(0)
+  commits                Int              @default(0)
+  commentsCount          Int              @default(0)
+  reviewRequests         Int              @default(0)
+  ciStatus               CiStatus?
+  testCoverageCurrent    Int?
+  testCoverageChange     Int?
+  documentationCoverage  Boolean?
+  mergeReadinessScore    Int?
+  aiReviewCompleted      Boolean          @default(false)
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+
+  repository     Repository      @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  author         Contributor?    @relation("PullRequestAuthor", fields: [authorContributorId], references: [id], onDelete: SetNull)
+  fileChanges    PrFileChange[]
+  checks         PrCheck[]
+  reviews        PrReview[]
+  reviewComments ReviewComment[]
+  aiReview       AIReview?
+  closesIssues   PrClosesIssue[]
+
+  @@unique([repositoryId, number])
+  @@index([repositoryId, state])
+  @@index([ciStatus])
+  @@index([authorContributorId])
+}
+
+model PrFileChange {
+  id            String           @id @default(uuid()) @db.Uuid
+  pullRequestId String           @db.Uuid
+  file          String
+  additions     Int              @default(0)
+  deletions     Int              @default(0)
+  changes       Int              @default(0)
+  status        FileChangeStatus
+  diff          String?          @db.Text
+
+  pullRequest PullRequest @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+
+  @@index([pullRequestId])
+}
+
+model PrCheck {
+  id            String      @id @default(uuid()) @db.Uuid
+  pullRequestId String      @db.Uuid
+  name          String
+  status        CheckStatus
+  description   String
+  url           String?
+  createdAt     DateTime    @default(now())
+
+  pullRequest PullRequest @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+
+  @@index([pullRequestId])
+}
+
+model PrReview {
+  id                   String      @id @default(uuid()) @db.Uuid
+  pullRequestId        String      @db.Uuid
+  reviewerContributorId String     @db.Uuid
+  state                ReviewState
+  createdAt            DateTime    @default(now())
+
+  pullRequest PullRequest @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+  reviewer    Contributor @relation(fields: [reviewerContributorId], references: [id], onDelete: Cascade)
+
+  @@index([pullRequestId])
+}
+
+model ReviewComment {
+  id                  String   @id @default(uuid()) @db.Uuid
+  pullRequestId       String   @db.Uuid
+  parentCommentId     String?  @db.Uuid
+  authorContributorId String   @db.Uuid
+  content             String   @db.Text
+  file                String?
+  line                Int?
+  createdAt           DateTime @default(now())
+
+  pullRequest   PullRequest     @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+  parentComment ReviewComment?  @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: SetNull)
+  replies       ReviewComment[] @relation("CommentReplies")
+  author        Contributor     @relation(fields: [authorContributorId], references: [id], onDelete: Cascade)
+
+  @@index([pullRequestId, createdAt])
+}
+
+model AIReview {
+  id                     String                 @id @default(uuid()) @db.Uuid
+  pullRequestId          String                 @unique @db.Uuid
+  summary                String                 @db.Text
+  keyFindings            String[]
+  approvalRecommendation ApprovalRecommendation
+  confidence             Int
+  securityRisk           SecurityRisk           @default(none)
+  securityIssues         Json?
+  performanceIssues      Json?
+  breakingChanges        Json?
+  suggestedChanges       Json?
+  mergeBlockers          String[]
+  mergeWarnings          String[]
+  createdAt              DateTime               @default(now())
+
+  pullRequest PullRequest @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+}
+
+model PrClosesIssue {
+  pullRequestId String @db.Uuid
+  issueId       String @db.Uuid
+
+  pullRequest PullRequest @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+  issue       Issue       @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  @@id([pullRequestId, issueId])
+}
+
+// ---------------------------------------------------------------------------
+// Health & Insights
+// ---------------------------------------------------------------------------
+
+model RepositoryHealth {
+  id                   String         @id @default(uuid()) @db.Uuid
+  repositoryId         String         @db.Uuid
+  codeQuality          Int
+  documentation        Int
+  issueBacklog         Int
+  prBacklog            Int
+  contributorActivity  Int
+  ciStatus             HealthCiStatus
+  releaseFrequency     String
+  automationCoverage   Int
+  securityAlerts       Int
+  dependencyHealth     Int
+  measuredAt           DateTime       @default(now())
+
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@index([repositoryId, measuredAt(sort: Desc)])
+}
+
+model AIInsight {
+  id                String          @id @default(uuid()) @db.Uuid
+  repositoryId      String          @db.Uuid
+  title             String
+  description       String
+  severity          InsightSeverity
+  confidence        Int
+  suggestedAction   String
+  quickFixAvailable Boolean         @default(false)
+  category          String
+  resolvedAt        DateTime?
+  createdAt         DateTime        @default(now())
+
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@index([repositoryId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Automation
+// ---------------------------------------------------------------------------
+
+model Workflow {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String  @db.Uuid
+  repositoryId   String? @db.Uuid
+  name           String
+  description    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  repository   Repository?  @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  automations  Automation[]
+
+  @@index([organizationId])
+  @@index([repositoryId])
+}
+
+model Automation {
+  id               String           @id @default(uuid()) @db.Uuid
+  repositoryId     String           @db.Uuid
+  workflowId       String?          @db.Uuid
+  name             String
+  description      String?
+  enabled          Boolean          @default(false)
+  status           AutomationStatus @default(inactive)
+  runsCount        Int              @default(0)
+  successRate      Int              @default(0)
+  lastExecutionAt  DateTime?
+  deletedAt        DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  repository Repository       @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  workflow   Workflow?        @relation(fields: [workflowId], references: [id], onDelete: SetNull)
+  nodes      AutomationNode[]
+  runs       AutomationRun[]
+
+  @@index([repositoryId])
+  @@index([workflowId])
+}
+
+model AutomationNode {
+  id           String            @id @default(uuid()) @db.Uuid
+  automationId String            @db.Uuid
+  type         AutomationNodeType
+  subtype      String
+  title        String
+  description  String?
+  config       Json
+  position     Int               @default(0)
+  status       NodeStatus        @default(active)
+
+  automation Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  @@index([automationId])
+}
+
+model AutomationRun {
+  id             String              @id @default(uuid()) @db.Uuid
+  automationId   String              @db.Uuid
+  webhookEventId String?             @db.Uuid
+  status         AutomationRunStatus
+  trigger        String
+  detail         Json?
+  durationMs     Int?
+  createdAt      DateTime            @default(now())
+
+  automation   Automation    @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  webhookEvent WebhookEvent? @relation(fields: [webhookEventId], references: [id], onDelete: SetNull)
+
+  @@index([automationId, createdAt(sort: Desc)])
+}
+
+// ---------------------------------------------------------------------------
+// AI Conversations
+// ---------------------------------------------------------------------------
+
+model AIConversation {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  repositoryId String?  @db.Uuid
+  title        String
+  isPinned     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repository Repository? @relation(fields: [repositoryId], references: [id], onDelete: SetNull)
+  messages   AIMessage[]
+
+  @@index([userId, updatedAt])
+  @@index([repositoryId])
+}
+
+model AIMessage {
+  id               String        @id @default(uuid()) @db.Uuid
+  conversationId   String        @db.Uuid
+  role             AiMessageRole
+  content          String        @db.Text
+  action           String?
+  isPinned         Boolean       @default(false)
+  promptTokens     Int?
+  completionTokens Int?
+  model            String?
+  metadata         Json?
+  createdAt        DateTime      @default(now())
+
+  conversation AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id           String           @id @default(uuid()) @db.Uuid
+  userId       String           @db.Uuid
+  type         NotificationType
+  title        String
+  description  String?
+  link         String?
+  isRead       Boolean          @default(false)
+  repositoryId String?          @db.Uuid
+  createdAt    DateTime         @default(now())
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repository Repository? @relation(fields: [repositoryId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isRead, createdAt(sort: Desc)])
+}
+
+// ---------------------------------------------------------------------------
+// Plugins
+// ---------------------------------------------------------------------------
+
+model Plugin {
+  id          String   @id @default(uuid()) @db.Uuid
+  slug        String   @unique
+  name        String
+  description String
+  category    String
+  author      String
+  version     String
+  official    Boolean  @default(false)
+  manifest    Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  installations PluginInstallation[]
+}
+
+model PluginInstallation {
+  id             String    @id @default(uuid()) @db.Uuid
+  pluginId       String    @db.Uuid
+  organizationId String    @db.Uuid
+  repositoryId   String?   @db.Uuid
+  enabled        Boolean   @default(true)
+  config         Json?
+  installedAt    DateTime  @default(now())
+  deletedAt      DateTime?
+
+  plugin       Plugin       @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  repository   Repository?  @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@unique([pluginId, organizationId, repositoryId])
+  @@index([organizationId])
+}
+
+// ---------------------------------------------------------------------------
+// System
+// ---------------------------------------------------------------------------
+
+model WebhookEvent {
+  id             String             @id @default(uuid()) @db.Uuid
+  installationId String?            @db.Uuid
+  deliveryId     String             @unique
+  event          String
+  action         String?
+  payload        Json
+  signatureValid Boolean
+  processedAt    DateTime?
+  status         WebhookEventStatus @default(received)
+  createdAt      DateTime           @default(now())
+
+  installation   Installation?   @relation(fields: [installationId], references: [id], onDelete: SetNull) // Installation.deliveredEvents
+  automationRuns AutomationRun[]
+
+  @@index([event, createdAt(sort: Desc)])
+}
+
+model AuditLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String?  @db.Uuid
+  actorUserId    String?  @db.Uuid
+  action         String
+  targetType     String
+  targetId       String
+  metadata       Json?
+  ip             String?
+  createdAt      DateTime @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  actor        User?         @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt(sort: Desc)])
+}
+
+model ApiKey {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @db.Uuid
+  name           String
+  hashedKey      String    @unique
+  scopes         String[]
+  lastUsedAt     DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}

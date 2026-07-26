@@ -32,3 +32,6 @@ jobs:
         run: pnpm build
         env:
           NEXT_TELEMETRY_DISABLED: "1"
+          SKIP_ENV_VALIDATION: "1"
+          DATABASE_URL: postgresql://maintainerai:maintainerai@localhost:5432/maintainerai?schema=public
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
