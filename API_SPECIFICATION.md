@@ -1,8 +1,9 @@
 # MaintainerAI — API Specification
 
 > Complete REST surface for MaintainerAI v1.0.
-> Design only — **no route handlers are implemented** as part of this document.
-> Maps directly to the entities in `DATABASE_DESIGN.md` and the UI routes in `app/`.
+> Phase 2 implements Authentication, Users, Organizations, Invitations, and Settings under `/api/v1`.
+> Later groups (GitHub App, repositories, AI, automation, …) remain design targets until their milestones.
+> Maps to entities in `DATABASE_DESIGN.md` (+ Phase 2 `Invitation` extension) and UI routes in `app/`.
 
 ## 1. Conventions
 
@@ -46,30 +47,42 @@
 | ------ | ---- | ----------- |
 | GET/POST | `/api/auth/[...nextauth]` | Auth.js GitHub OAuth (login, callback, session, signout) |
 | GET | `/api/v1/auth/session` | Current session + user |
-| POST | `/api/v1/auth/logout` | Invalidate session |
-| GET | `/api/v1/auth/github/install-url` | Returns GitHub App install URL (onboarding) |
-| GET | `/api/v1/auth/github/callback` | App installation callback → links `Installation` |
+| POST | `/api/v1/auth/logout` | Invalidate session (`{ everywhere?: boolean }`) |
+| GET | `/api/v1/auth/github/install-url` | GitHub App install URL — **Phase 3 stub (503)** |
+| GET | `/api/v1/auth/github/callback` | App install callback — **Phase 3 stub (503)** |
 
 ## 4. Users
 
 | Method | Path | Description |
 | ------ | ---- | ----------- |
 | GET | `/api/v1/users/me` | Current user profile |
-| PATCH | `/api/v1/users/me` | Update profile (name, email prefs) |
+| PATCH | `/api/v1/users/me` | Update profile (name, email, theme, timezone, prefs, avatar) |
 | GET | `/api/v1/users/me/organizations` | Orgs the user belongs to |
-| GET | `/api/v1/users/me/notifications` | Alias → notifications inbox |
-| DELETE | `/api/v1/users/me` | Delete account (cascades sessions/conversations) |
+| GET | `/api/v1/users/me/notifications` | Notifications inbox |
+| GET | `/api/v1/users/me/sessions` | Active sessions (fingerprints) |
+| DELETE | `/api/v1/users/me/sessions` | Logout everywhere |
+| DELETE | `/api/v1/users/me` | Delete account (cascades sessions) |
+| GET/PATCH | `/api/v1/settings` | User settings (theme, timezone, notification prefs) |
 
 ## 5. Organizations
 
 | Method | Path | Description |
 | ------ | ---- | ----------- |
 | GET | `/api/v1/orgs` | List orgs for current user |
-| GET | `/api/v1/orgs/:orgId` | Org detail |
+| POST | `/api/v1/orgs` | Create organization (caller becomes admin) |
+| GET | `/api/v1/orgs/:orgId` | Org detail + caller role |
+| PATCH | `/api/v1/orgs/:orgId` | Rename / update org (`org:update`) |
+| DELETE | `/api/v1/orgs/:orgId` | Delete org (admin) or `?leave=true` to leave |
 | GET | `/api/v1/orgs/:orgId/members` | List memberships |
-| PATCH | `/api/v1/orgs/:orgId/members/:userId` | Change role (`admin`/`maintainer`/`developer`/`viewer`) |
+| PATCH | `/api/v1/orgs/:orgId/members/:userId` | Change role |
 | DELETE | `/api/v1/orgs/:orgId/members/:userId` | Remove member |
-| GET | `/api/v1/orgs/:orgId/dashboard` | Aggregated org dashboard stats (`org-dashboard.tsx`) |
+| GET/POST | `/api/v1/orgs/:orgId/invitations` | List / create invitations |
+| DELETE | `/api/v1/orgs/:orgId/invitations/:invitationId` | Revoke invitation |
+| POST | `/api/v1/invitations/:token/accept` | Accept invitation |
+| POST | `/api/v1/invitations/:token/reject` | Reject invitation |
+| GET/PATCH | `/api/v1/orgs/:orgId/settings` | Org settings |
+| POST | `/api/v1/orgs/:orgId/transfer` | Transfer ownership |
+| GET | `/api/v1/orgs/:orgId/dashboard` | Aggregated org dashboard stats |
 | GET | `/api/v1/orgs/:orgId/audit-logs` | Audit trail (paginated) |
 
 ## 6. GitHub / Installations

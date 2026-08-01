@@ -41,12 +41,19 @@ export const envSchema = z.object({
   // Feature / infra flags
   SKIP_ENV_VALIDATION: booleanFromEnv.default(false),
   INFRASTRUCTURE_STRICT: booleanFromEnv.default(false),
+  AUTH_STRICT: booleanFromEnv.default(false),
 
-  // Future milestones (optional — documented, not used in Phase 1)
-  NEXTAUTH_URL: z.string().optional(),
-  NEXTAUTH_SECRET: z.string().optional(),
+  // Auth.js / GitHub OAuth (Phase 2)
+  NEXTAUTH_URL: z.string().url().optional(),
+  NEXTAUTH_SECRET: z.string().min(16).optional(),
+  AUTH_SECRET: z.string().min(16).optional(),
   GITHUB_OAUTH_CLIENT_ID: z.string().optional(),
   GITHUB_OAUTH_CLIENT_SECRET: z.string().optional(),
+  AUTH_SESSION_MAX_AGE_SECONDS: z.coerce.number().int().positive().default(60 * 60 * 24 * 30),
+  AUTH_SESSION_UPDATE_AGE_SECONDS: z.coerce.number().int().positive().default(60 * 60 * 24),
+  AUTH_CSRF_PROTECT: booleanFromEnv.default(false),
+
+  // Future milestones (optional)
   GITHUB_APP_ID: z.string().optional(),
   GITHUB_APP_CLIENT_ID: z.string().optional(),
   GITHUB_APP_CLIENT_SECRET: z.string().optional(),
@@ -99,4 +106,24 @@ export function assertInfrastructureEnv(env: Env): void {
   if (env.INFRASTRUCTURE_STRICT || process.env.MAINTAINERAI_WORKER === '1') {
     throw new Error(message)
   }
+}
+
+export function assertAuthEnv(env: Env): void {
+  const secret = env.AUTH_SECRET ?? env.NEXTAUTH_SECRET
+  const missing: string[] = []
+  if (!secret) missing.push('NEXTAUTH_SECRET (or AUTH_SECRET)')
+  if (!env.GITHUB_OAUTH_CLIENT_ID) missing.push('GITHUB_OAUTH_CLIENT_ID')
+  if (!env.GITHUB_OAUTH_CLIENT_SECRET) missing.push('GITHUB_OAUTH_CLIENT_SECRET')
+  if (missing.length === 0) return
+
+  const message = `Missing required authentication environment variables: ${missing.join(', ')}. See .env.example and docs/configuration.md.`
+
+  if (env.AUTH_STRICT) {
+    throw new Error(message)
+  }
+}
+
+export function isAuthConfigured(env: Env): boolean {
+  const secret = env.AUTH_SECRET ?? env.NEXTAUTH_SECRET
+  return Boolean(secret && env.GITHUB_OAUTH_CLIENT_ID && env.GITHUB_OAUTH_CLIENT_SECRET)
 }

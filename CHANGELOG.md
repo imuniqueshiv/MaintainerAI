@@ -9,11 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Phase 2 Authentication:** Auth.js (GitHub OAuth), database sessions, users/orgs/members/invitations APIs, RBAC
+- `AUTHENTICATION_FLOW.md` and `RBAC_DOCUMENTATION.md`
+- Prisma migration `20260801000000_phase2_auth` (user prefs + `Invitation`)
+
+### Added (earlier)
+
 - Open-source foundation: license, governance, security policy, and contribution guides
 - GitHub issue forms, pull request template, and discussion templates
 - CI workflows for lint, typecheck, build, CodeQL, Dependabot, and release scaffolding
 - Docker, Docker Compose, and Dev Container support
 - Project documentation under `/docs`
+- Phase 1 engineering foundation (Prisma, Redis, BullMQ, health probes)
 
 ## [0.1.0] - 2026-07-10
 

@@ -99,7 +99,7 @@ export function MarketingNav() {
               GitHub
             </Button>
           </a>
-          <Link href="/onboarding" className="hidden sm:inline-flex">
+          <Link href="/api/auth/signin/github" className="hidden sm:inline-flex">
             <Button variant="outline" size="sm">
               Sign In
             </Button>
@@ -151,7 +151,7 @@ export function MarketingNav() {
                   GitHub
                 </Button>
               </a>
-              <Link href="/onboarding" onClick={() => setOpen(false)}>
+              <Link href="/api/auth/signin/github" onClick={() => setOpen(false)}>
                 <Button variant="outline" className="w-full">
                   Sign In
                 </Button>

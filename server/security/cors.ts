@@ -1,20 +1,23 @@
-import { CORRELATION_ID_HEADER, REQUEST_ID_HEADER } from '@/server/constants'
+import { CORRELATION_ID_HEADER, CSRF_HEADER, REQUEST_ID_HEADER } from '@/server/constants'
 import { getConfig } from '@/server/config'
 
 /**
  * Apply CORS headers based on `CORS_ORIGIN` configuration.
- * Use `*` only for local/dev; prefer explicit origins in production.
+ * Credentialed responses require an explicit origin (never `*` with credentials).
  */
 export function applyCorsHeaders(request: Request, headers: Headers): void {
   const { corsOrigin } = getConfig().security
   const origin = request.headers.get('origin')
 
   if (corsOrigin === '*') {
+    // Browsers forbid Access-Control-Allow-Credentials with `*`.
+    // Same-origin app traffic does not need CORS; cross-origin cookie auth must set CORS_ORIGIN.
     headers.set('Access-Control-Allow-Origin', '*')
   } else if (origin) {
     const allowed = corsOrigin.split(',').map((value) => value.trim())
     if (allowed.includes(origin)) {
       headers.set('Access-Control-Allow-Origin', origin)
+      headers.set('Access-Control-Allow-Credentials', 'true')
       headers.set('Vary', 'Origin')
     }
   }
@@ -27,6 +30,7 @@ export function applyCorsHeaders(request: Request, headers: Headers): void {
       'Authorization',
       REQUEST_ID_HEADER,
       CORRELATION_ID_HEADER,
+      CSRF_HEADER,
       'Idempotency-Key',
     ].join(', '),
   )

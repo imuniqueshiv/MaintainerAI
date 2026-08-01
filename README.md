@@ -157,10 +157,11 @@ picks the next free port (e.g. `3001`, `3002`) — check the terminal for the ex
 > **Full infrastructure** below. Skipping `cp .env.example .env.local` yields
 > `DATABASE_URL not configured` — the env file is mandatory.
 
-### Full infrastructure (Phase 1)
+### Full infrastructure + auth (Phase 1–2)
 
 ```bash
 cp .env.example .env.local   # or .env — either is loaded; .env.example is NOT
+# Set NEXTAUTH_SECRET, GITHUB_OAUTH_CLIENT_ID, GITHUB_OAUTH_CLIENT_SECRET
 docker compose up -d postgres redis
 pnpm install
 pnpm db:generate
@@ -174,21 +175,32 @@ Verify the stack is ready (expect `HTTP 200` with `"ready":true`):
 ```bash
 curl -i http://localhost:3000/api/ready
 pnpm infra:check   # direct DB + Redis + queue probe from the host
+curl -i http://localhost:3000/api/v1/auth/session
 ```
 
 Host ports for local tooling: Postgres `5433`, Redis `6380` (see `.env.example`).
 
-Probes: `/api/live` · `/api/health` · `/api/ready` · `/api/v1/meta`
+Probes: `/api/live` · `/api/health` · `/api/ready` · `/api/v1/meta`  
+Auth: `/api/auth/*` · `/api/v1/auth/session` · `/api/v1/users/me` · `/api/v1/orgs`
+
+Docs: [AUTHENTICATION_FLOW.md](./AUTHENTICATION_FLOW.md) · [RBAC_DOCUMENTATION.md](./RBAC_DOCUMENTATION.md)
 
 Full guide: [docs/installation.md](./docs/installation.md) · [docs/infrastructure.md](./docs/infrastructure.md) · [docs/development.md](./docs/development.md)
 
 ## Docker Setup
 
 ```bash
+# Required for the production web service image:
+export NEXTAUTH_SECRET="$(openssl rand -base64 32)"
+# Optional for live OAuth inside Compose:
+# export GITHUB_OAUTH_CLIENT_ID=...
+# export GITHUB_OAUTH_CLIENT_SECRET=...
+
 docker compose up --build
 ```
 
 Starts PostgreSQL, Redis, migrations, the web app, and the worker on port `3000`.
+`NEXTAUTH_SECRET` is **required** (Compose fails fast if unset).
 
 Details: [docs/docker.md](./docs/docker.md)
 
@@ -213,9 +225,12 @@ Configuration is validated by `server/config` — do not read `process.env` in a
 | `NEXT_PUBLIC_APP_URL`   | Public app URL                         | Yes                       |
 | `DATABASE_URL`          | PostgreSQL connection string           | For `/api/ready` + worker |
 | `REDIS_URL`             | Redis connection string                | For `/api/ready` + worker |
+| `NEXTAUTH_URL`          | Auth.js canonical URL                  | For OAuth callbacks       |
+| `NEXTAUTH_SECRET`       | Auth.js session secret (≥16 chars)     | For sign-in               |
+| `GITHUB_OAUTH_CLIENT_ID` / `_SECRET` | GitHub OAuth App credentials | For sign-in        |
 | `QUEUE_PREFIX`          | BullMQ prefix (default `maintainerai`) | No                        |
 | `LOG_LEVEL`             | Pino log level                         | No                        |
-| `GITHUB_APP_*` / `AI_*` | Future milestones                      | Phase 2+                  |
+| `GITHUB_APP_*` / `AI_*` | Future milestones                      | Phase 3+                  |
 
 See [docs/configuration.md](./docs/configuration.md).
 

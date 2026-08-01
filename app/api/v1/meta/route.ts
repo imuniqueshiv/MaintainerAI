@@ -14,11 +14,14 @@ export const GET = withApi(async () => {
     apiVersion: API_VERSION,
     environment: config.appEnv,
     features: config.features,
+    authConfigured: config.auth.configured,
     docs: {
       productSpec: '/PRODUCT_SPEC.md',
       architecture: '/docs/architecture.md',
       configuration: '/docs/configuration.md',
       infrastructure: '/docs/infrastructure.md',
+      authentication: '/AUTHENTICATION_FLOW.md',
+      rbac: '/RBAC_DOCUMENTATION.md',
     },
   })
 })

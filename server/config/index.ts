@@ -1,4 +1,11 @@
-import { assertInfrastructureEnv, isNextBuildPhase, parseEnv, type Env } from '@/server/config/env'
+import {
+  assertAuthEnv,
+  assertInfrastructureEnv,
+  isAuthConfigured,
+  isNextBuildPhase,
+  parseEnv,
+  type Env,
+} from '@/server/config/env'
 
 export type AppConfig = {
   env: Env['NODE_ENV']
@@ -35,9 +42,19 @@ export type AppConfig = {
     rateLimitWindowMs: number
     rateLimitMax: number
   }
+  auth: {
+    configured: boolean
+    secret: string | undefined
+    githubClientId: string | undefined
+    githubClientSecret: string | undefined
+    sessionMaxAgeSeconds: number
+    sessionUpdateAgeSeconds: number
+    csrfProtect: boolean
+    url: string | undefined
+  }
   features: {
     infrastructure: true
-    auth: false
+    auth: true
     githubApp: false
     repositorySync: false
     ai: false
@@ -55,6 +72,7 @@ let cached: AppConfig | null = null
 function buildConfig(env: Env): AppConfig {
   const appEnv = env.APP_ENV ?? env.NODE_ENV
   const pretty = env.LOG_PRETTY ?? (appEnv === 'development' && process.env.CI !== 'true')
+  const secret = env.AUTH_SECRET ?? env.NEXTAUTH_SECRET
 
   return {
     env: env.NODE_ENV,
@@ -91,9 +109,19 @@ function buildConfig(env: Env): AppConfig {
       rateLimitWindowMs: env.RATE_LIMIT_WINDOW_MS,
       rateLimitMax: env.RATE_LIMIT_MAX,
     },
+    auth: {
+      configured: isAuthConfigured(env),
+      secret,
+      githubClientId: env.GITHUB_OAUTH_CLIENT_ID,
+      githubClientSecret: env.GITHUB_OAUTH_CLIENT_SECRET,
+      sessionMaxAgeSeconds: env.AUTH_SESSION_MAX_AGE_SECONDS,
+      sessionUpdateAgeSeconds: env.AUTH_SESSION_UPDATE_AGE_SECONDS,
+      csrfProtect: env.AUTH_CSRF_PROTECT || appEnv === 'production',
+      url: env.NEXTAUTH_URL ?? env.NEXT_PUBLIC_APP_URL,
+    },
     features: {
       infrastructure: true,
-      auth: false,
+      auth: true,
       githubApp: false,
       repositorySync: false,
       ai: false,
@@ -132,6 +160,15 @@ export function getConfig(): AppConfig {
         throw error
       }
       // Development / web without Docker: allow boot; readiness reports degraded.
+    }
+
+    try {
+      assertAuthEnv(env)
+    } catch (error) {
+      if (env.AUTH_STRICT) {
+        throw error
+      }
+      // Allow boot without OAuth secrets; auth endpoints report unavailable.
     }
   }
 

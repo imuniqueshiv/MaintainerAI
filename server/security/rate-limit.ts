@@ -10,7 +10,7 @@ const memoryBuckets = new Map<string, Counter>()
 /**
  * Rate-limit infrastructure.
  * Uses Redis when available; falls back to in-memory for local/dev.
- * Authentication is intentionally not implemented in Phase 1.
+ * Applied by `withApi` to authenticated and public API routes (skip with `skipRateLimit`).
  */
 export async function assertRateLimit(key: string): Promise<void> {
   const { rateLimitWindowMs, rateLimitMax } = getConfig().security

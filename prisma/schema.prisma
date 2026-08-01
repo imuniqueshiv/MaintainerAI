@@ -26,6 +26,14 @@ enum MembershipRole {
   viewer
 }
 
+enum InvitationStatus {
+  pending
+  accepted
+  rejected
+  expired
+  revoked
+}
+
 enum InstallationStatus {
   active
   suspended
@@ -186,23 +194,28 @@ enum WebhookEventStatus {
 // ---------------------------------------------------------------------------
 
 model User {
-  id        String   @id @default(uuid()) @db.Uuid
-  githubId  BigInt   @unique
-  login     String   @unique
-  name      String?
-  email     String?  @unique
-  avatarUrl String?
-  isBot     Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                   String    @id @default(uuid()) @db.Uuid
+  githubId             BigInt    @unique
+  login                String    @unique
+  name                 String?
+  email                String?   @unique
+  emailVerified        DateTime?
+  avatarUrl            String?
+  isBot                Boolean   @default(false)
+  theme                String    @default("system")
+  timezone             String    @default("UTC")
+  notificationPrefs    Json?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  accounts         Account[]
-  sessions         Session[]
-  memberships      Membership[]
-  ownedOrgs        Organization[]     @relation("OrganizationOwner")
-  notifications    Notification[]
-  aiConversations  AIConversation[]
-  auditLogs        AuditLog[]         @relation("AuditActor")
+  accounts            Account[]
+  sessions            Session[]
+  memberships         Membership[]
+  ownedOrgs           Organization[] @relation("OrganizationOwner")
+  notifications       Notification[]
+  aiConversations     AIConversation[]
+  auditLogs           AuditLog[]     @relation("AuditActor")
+  invitationsSent     Invitation[]   @relation("InvitationInviter")
 }
 
 model Account {
@@ -257,6 +270,7 @@ model Organization {
 
   owner               User?                @relation("OrganizationOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
   memberships         Membership[]
+  invitations         Invitation[]
   installations       Installation[]
   repositories        Repository[]
   workflows           Workflow[]
@@ -279,6 +293,29 @@ model Membership {
 
   @@id([userId, organizationId])
   @@index([organizationId])
+}
+
+/// Phase 2 extension: org invitations (not in original DATABASE_DESIGN.md; required by product UX).
+model Invitation {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @db.Uuid
+  email          String
+  role           MembershipRole   @default(viewer)
+  token          String           @unique
+  status         InvitationStatus @default(pending)
+  invitedById    String           @db.Uuid
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  rejectedAt     DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy    User         @relation("InvitationInviter", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@index([email])
+  @@index([token])
 }
 
 // ---------------------------------------------------------------------------

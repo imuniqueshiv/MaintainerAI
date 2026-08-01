@@ -54,9 +54,9 @@ export default function ConnectGitHubPage() {
             </div>
           </div>
 
-          {/* Connect Button */}
+          {/* Connect Button — Phase 2: GitHub OAuth via Auth.js */}
           <div className="pt-4">
-            <Link href="/onboarding/select-repositories">
+            <Link href="/api/auth/signin/github">
               <Button size="lg" className="w-full gap-2">
                 <GitBranch className="w-5 h-5" />
                 Connect with GitHub
@@ -70,7 +70,8 @@ export default function ConnectGitHubPage() {
           {/* Security Info */}
           <div className="border-t border-border pt-6">
             <p className="text-sm text-muted-foreground text-center">
-              🔒 Your data is encrypted and we never store your GitHub token
+              🔒 OAuth access tokens are stored encrypted at rest in your database session/account
+              records and are never exposed to the browser. Rotate credentials via GitHub if needed.
             </p>
           </div>
         </div>

@@ -30,7 +30,7 @@ describe('health API routes (integration-lite)', () => {
     expect(response.status).toBe(200)
     const body = await response.json()
     expect(body.data.features.infrastructure).toBe(true)
-    expect(body.data.features.auth).toBe(false)
+    expect(body.data.features.auth).toBe(true)
   })
 
   it('GET /api/health returns structured checks when infra missing', async () => {

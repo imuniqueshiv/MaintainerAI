@@ -49,11 +49,31 @@ For Docker Compose full stack, also copy to `.env` (Compose reads it for some wo
 | `RATE_LIMIT_WINDOW_MS` | `60000` | Rate limit window                                         |
 | `RATE_LIMIT_MAX`       | `120`   | Max requests per window per key                           |
 
-## Future milestones (optional, unused in Phase 1)
+## Authentication (Phase 2)
+
+| Variable | Required | Description |
+| -------- | -------- | ----------- |
+| `NEXTAUTH_URL` | For OAuth callbacks | Canonical app URL (e.g. `http://localhost:3000`) |
+| `NEXTAUTH_SECRET` / `AUTH_SECRET` | For sign-in | Auth.js secret (≥16 chars); `openssl rand -base64 32` |
+| `GITHUB_OAUTH_CLIENT_ID` | For sign-in | GitHub OAuth App client id |
+| `GITHUB_OAUTH_CLIENT_SECRET` | For sign-in | GitHub OAuth App client secret |
+| `AUTH_STRICT` | No (`false`) | Fail startup when OAuth secrets missing |
+| `AUTH_SESSION_MAX_AGE_SECONDS` | No (`2592000`) | Session TTL (30 days) |
+| `AUTH_SESSION_UPDATE_AGE_SECONDS` | No (`86400`) | Auth.js session update age |
+| `AUTH_CSRF_PROTECT` | No (on in prod) | Extra CSRF checks for mutating APIs |
+
+GitHub OAuth App **Authorization callback URL**:
+
+```text
+{NEXTAUTH_URL}/api/auth/callback/github
+```
+
+See [AUTHENTICATION_FLOW.md](../AUTHENTICATION_FLOW.md) and [RBAC_DOCUMENTATION.md](../RBAC_DOCUMENTATION.md).
+
+## Future milestones (optional, unused in Phase 2)
 
 Documented in `.env.example`:
 
-- Auth / OAuth: `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `GITHUB_OAUTH_*`
 - GitHub App: `GITHUB_APP_*`, `GITHUB_WEBHOOK_SECRET`
 - AI: `AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL`, `AI_BASE_URL`
 - Storage: `STORAGE_*`
@@ -65,4 +85,5 @@ Documented in `.env.example`:
 - Redact secrets before sharing logs
 - Use separate credentials for development and production
 - `/api/ready` is the authoritative check that infrastructure is wired
+- `/api/v1/auth/session` reports whether the caller is authenticated and whether OAuth is configured
 - See [Infrastructure](./infrastructure.md) for Compose and worker setup

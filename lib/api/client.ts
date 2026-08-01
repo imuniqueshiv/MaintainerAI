@@ -44,6 +44,7 @@ export async function apiFetch<T>(
   }
 
   const response = await fetch(`${base}${path}`, {
+    credentials: 'include',
     ...init,
     headers,
     body,

@@ -44,11 +44,12 @@ describe('configuration', () => {
     expect(() => assertInfrastructureEnv(env)).toThrow(/REDIS_URL/)
   })
 
-  it('getConfig exposes feature flags for Phase 1', () => {
+  it('getConfig exposes feature flags for Phase 2', () => {
     process.env.SKIP_ENV_VALIDATION = '1'
     const config = getConfig()
     expect(config.features.infrastructure).toBe(true)
-    expect(config.features.auth).toBe(false)
+    expect(config.features.auth).toBe(true)
     expect(config.features.githubApp).toBe(false)
+    expect(config.auth.configured).toBe(false)
   })
 })

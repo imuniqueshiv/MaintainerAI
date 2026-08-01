@@ -1196,8 +1196,8 @@ The web command center remains the heart of the product; other surfaces are clie
 | GitHub Workflows / Docker / DX | ✅ Complete | 100% |
 | Architecture & Planning | ✅ Complete | 100% |
 | Product Specification (`PRODUCT_SPEC.md`) | ✅ Complete | 100% |
-| Infrastructure | ⏳ Planned | 0% |
-| Authentication | ⏳ Planned | 0% |
+| Infrastructure | ✅ Complete | 100% |
+| Authentication | ✅ Complete | 100% |
 | GitHub App (backend) | ⏳ Planned | 0% |
 | Repository Sync | ⏳ Planned | 0% |
 | AI Backend | ⏳ Planned | 0% |
@@ -1206,7 +1206,7 @@ The web command center remains the heart of the product; other surfaces are clie
 | Production Release (v1.0) | ⏳ Planned | 0% |
 | Future Ecosystem (SDK / CLI / VS Code) | 🧭 Future | 0% |
 
-**Overall product readiness:** UI and planning are complete; the live platform (auth → App → sync → AI → automation → release) is **not started**. Next execution step: **Phase 1 — Infrastructure** (`DEVELOPMENT_ROADMAP.md` Milestone 1).
+**Overall product readiness:** UI, planning, infrastructure, and authentication are complete. Next execution step: **Phase 3 — GitHub App** (`DEVELOPMENT_ROADMAP.md` Milestone 3).
 
 ---
 

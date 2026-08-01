@@ -50,19 +50,21 @@ flowchart LR
 
 ## Milestone 2 — Authentication
 
+**Status:** ✅ Complete (`v0.2.0-auth` candidate) — see `PHASE2_COMPLETION_SUMMARY.md`
+
 **Goal:** real GitHub OAuth login, sessions, tenancy, and authorization scaffolding.
 
 **Tasks**
-- Integrate Auth.js (GitHub provider) with database sessions (`User`, `Account`, `Session`).
-- Implement `Organization`/`Membership` resolution and role model (`admin/maintainer/developer/viewer`).
-- Build session/tenant/authorization middleware for `/api/v1/*` (the pipeline in `SYSTEM_ARCHITECTURE.md` §7).
-- Implement Authentication + Users + Organizations endpoints (`API_SPECIFICATION.md` §3–5).
-- Wire existing UI: `Sign In`, `/onboarding`, navbar user menu, settings profile read from `/api/v1/users/me` (replace mock).
-- Add auth/authorization unit + integration tests. Flip `ignoreBuildErrors` off.
+- [x] Integrate Auth.js (GitHub provider) with database sessions (`User`, `Account`, `Session`).
+- [x] Implement `Organization`/`Membership` resolution and role model (`admin/maintainer/developer/viewer`).
+- [x] Build session/tenant/authorization middleware for `/api/v1/*` (the pipeline in `SYSTEM_ARCHITECTURE.md` §7).
+- [x] Implement Authentication + Users + Organizations endpoints (`API_SPECIFICATION.md` §3–5) + invitations.
+- [x] Wire Sign In / Connect GitHub to Auth.js (minimal; no UI redesign). Full settings page data wiring can continue incrementally.
+- [x] Add auth/authorization unit + integration tests. `ignoreBuildErrors` already false from Phase 1.
 
 **Dependencies:** M1.
 **Complexity:** L.
-**Files affected:** `app/api/auth/[...nextauth]/route.ts` (new), `app/api/v1/{auth,users,orgs}/**` (new), `server/auth/*` (new), `middleware.ts` (new), `components/layout/navbar.tsx` (data source only), `app/settings/page.tsx` (profile data), `app/onboarding/**` (wire login), `next.config.mjs`.
+**Files affected:** `app/api/auth/[...nextauth]/route.ts`, `app/api/v1/{auth,users,orgs,invitations,settings}/**`, `server/auth/*`, `middleware.ts`, onboarding/marketing Sign In links.
 
 ---
 

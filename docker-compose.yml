@@ -92,9 +92,15 @@ services:
       REDIS_URL: redis://redis:6379
       QUEUE_PREFIX: maintainerai
       LOG_LEVEL: info
-      CORS_ORIGIN: '*'
       TRUST_PROXY: 'false'
       INFRASTRUCTURE_STRICT: 'false'
+      NEXTAUTH_URL: http://localhost:3000
+      # Required for production Compose. Generate: openssl rand -base64 32
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET in the environment or a .env file}
+      GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:-}
+      GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:-}
+      # Prefer explicit origins in production when using credentialed clients
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
     depends_on:
       postgres:
         condition: service_healthy
@@ -130,6 +136,10 @@ services:
       QUEUE_PREFIX: maintainerai
       LOG_LEVEL: debug
       LOG_PRETTY: 'true'
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-compose-insecure-secret-change-me}
+      GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:-}
+      GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:-}
     depends_on:
       postgres:
         condition: service_healthy
