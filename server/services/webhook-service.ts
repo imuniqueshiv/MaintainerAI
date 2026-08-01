@@ -10,6 +10,7 @@ import {
 } from '@/server/services/installation-service'
 import { upsertRepositoryMetadata } from '@/server/services/repository-github-service'
 import { listInstallationRepositories } from '@/server/github'
+import { enqueueEntitySync, WEBHOOK_EVENT_ENTITY } from '@/server/sync/coordinator'
 import { createLogger } from '@/server/logger'
 
 const log = createLogger({ component: 'github.webhooks' })
@@ -157,6 +158,8 @@ export async function dispatchWebhookEvent(eventId: string) {
       await handleInstallationRepositoriesEvent(action, payload)
     } else if (event.event === 'repository') {
       await handleRepositoryEvent(action, payload)
+    } else if (event.event in WEBHOOK_EVENT_ENTITY) {
+      await handleSyncEvent(event.event, payload)
     }
 
     await prisma.webhookEvent.update({
@@ -251,14 +254,51 @@ async function handleInstallationRepositoriesEvent(
     )
     for (const meta of remote) {
       if (!addedIds.has(Number(meta.githubId))) continue
-      await upsertRepositoryMetadata({
+      const repo = await upsertRepositoryMetadata({
         installationId: local.id,
         organizationId: local.organizationId,
         meta,
         connect: true,
       })
+      if (getConfig().features.repositorySync && getConfig().redis.configured) {
+        const { startRepositorySync } = await import('@/server/sync/coordinator')
+        await startRepositorySync({
+          repositoryId: repo.id,
+          trigger: 'webhook',
+          mode: 'full',
+        }).catch((error) =>
+          log.warn({ err: error, repositoryId: repo.id }, 'Failed to enqueue sync after repo added'),
+        )
+      }
     }
   }
+}
+
+/**
+ * Resource-level webhooks (issues, PRs, labels, milestones, releases, push,
+ * membership) only enqueue an incremental sync for the affected entity —
+ * no inline GitHub calls or DB writes happen here.
+ */
+async function handleSyncEvent(event: string, payload: Record<string, unknown>) {
+  if (!getConfig().features.repositorySync || !getConfig().redis.configured) return
+
+  const repo = payload.repository as { id: number } | undefined
+  if (!repo?.id) return
+
+  const local = await prisma.repository.findFirst({
+    where: { githubId: BigInt(repo.id), deletedAt: null },
+  })
+  if (!local) return
+
+  const entity = WEBHOOK_EVENT_ENTITY[event]
+  if (!entity) return
+
+  await enqueueEntitySync({
+    repositoryId: local.id,
+    entity,
+    trigger: 'webhook',
+    mode: 'incremental',
+  })
 }
 
 async function handleRepositoryEvent(action: string | null, payload: Record<string, unknown>) {
@@ -278,25 +318,48 @@ async function handleRepositoryEvent(action: string | null, payload: Record<stri
   })
   if (!local) return
 
-  if (action === 'deleted' || action === 'archived') {
+  if (action === 'deleted') {
     await prisma.repository.updateMany({
       where: { githubId: BigInt(repo.id) },
-      data: {
-        deletedAt: action === 'deleted' ? new Date() : undefined,
-        archived: action === 'archived' ? true : undefined,
-      },
+      data: { deletedAt: new Date() },
     })
     return
   }
 
+  if (action === 'archived') {
+    await prisma.repository.updateMany({
+      where: { githubId: BigInt(repo.id) },
+      data: { archived: true },
+    })
+    return
+  }
+
+  if (action === 'unarchived') {
+    await prisma.repository.updateMany({
+      where: { githubId: BigInt(repo.id) },
+      data: { archived: false, deletedAt: null },
+    })
+  }
+
+  // renamed / transferred / publicized / privatized / edited — refresh metadata
   const remote = await listInstallationRepositories(installation.id)
   const meta = remote.find((r) => Number(r.githubId) === repo.id)
   if (meta) {
-    await upsertRepositoryMetadata({
+    const updated = await upsertRepositoryMetadata({
       installationId: local.id,
       organizationId: local.organizationId,
       meta,
       connect: true,
     })
+    if (getConfig().features.repositorySync && getConfig().redis.configured) {
+      await enqueueEntitySync({
+        repositoryId: updated.id,
+        entity: 'repository',
+        trigger: 'webhook',
+        mode: 'incremental',
+      }).catch((error) =>
+        log.warn({ err: error, repositoryId: updated.id }, 'Failed to enqueue repo metadata sync'),
+      )
+    }
   }
 }

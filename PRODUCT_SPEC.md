@@ -18,8 +18,8 @@
 | Product name | MaintainerAI |
 | License | MIT |
 | Primary users | Open-source maintainers, org admins, contributor communities |
-| Current product stage | UI complete; Phases 1–3 backend live (foundation, auth, GitHub App); issue/PR sync and AI remain future |
-| Production readiness (audit) | Phase 3 GitHub App platform — see `PHASE3_RELEASE_AUDIT.md` |
+| Current product stage | UI complete; Phases 1–4 backend live (foundation, auth, GitHub App, repository sync); AI/health/automation remain future |
+| Production readiness (audit) | Phase 4 repository sync — see `PHASE4_RELEASE_AUDIT.md` |
 | Companion “how” docs | Architecture, Database, API, Development Roadmap |
 
 **Change policy:** Product decisions that change scope, personas, acceptance criteria, or Definition of Done must update this document in the same PR as the decision. Architecture docs may change without a PRODUCT_SPEC update only when behavior and user-facing outcomes remain identical.
@@ -581,11 +581,12 @@ flowchart LR
 | | |
 | --- | --- |
 | **Objectives** | Live GitHub data in the command center |
-| **Deliverables** | Sync workers, incremental webhooks, health engine, notifications seed |
+| **Deliverables** | Sync workers, checkpoints, incremental/webhook sync, resource APIs, dashboard wired to DB (no health engine) |
 | **Dependencies** | Phase 3 |
-| **Exit criteria** | Dashboard/repos/issues/PRs/contributors/health show real data; mocks retired from those paths |
+| **Exit criteria** | Dashboard/repos/issues/PRs/contributors show synchronized data; mocks retired from those paths |
 | **Complexity** | XL |
 | **Risk** | High (rate limits, consistency) |
+| **Status** | ✅ Complete — ready for tag `v0.4.0-repository-sync` (see `PHASE4_REVIEW.md`) |
 
 ### Phase 5 — AI Engine
 
@@ -1200,14 +1201,14 @@ The web command center remains the heart of the product; other surfaces are clie
 | Infrastructure | ✅ Complete | 100% |
 | Authentication | ✅ Complete | 100% |
 | GitHub App (backend) | ✅ Complete | 100% |
-| Repository Sync | ⏳ Planned | 0% |
+| Repository Sync | ✅ Complete | 100% |
 | AI Backend | ⏳ Planned | 0% |
 | Automation Engine | ⏳ Planned | 0% |
 | Marketplace Backend | ⏳ Planned | 0% |
 | Production Release (v1.0) | ⏳ Planned | 0% |
 | Future Ecosystem (SDK / CLI / VS Code) | 🧭 Future | 0% |
 
-**Overall product readiness:** UI, planning, infrastructure, authentication, and GitHub App platform are complete. Next execution step: **Phase 4 — Repository Sync** (`DEVELOPMENT_ROADMAP.md` Milestone 4). Release tag target for this milestone: `v0.3.0-github-app` (create after release audit).
+**Overall product readiness:** UI, planning, infrastructure, authentication, GitHub App, and repository synchronization are complete. Next execution step: **Phase 5 — AI Engine** (`DEVELOPMENT_ROADMAP.md`). Release tag target for this milestone: `v0.4.0-repository-sync` (see `PHASE4_REVIEW.md`).
 
 ---
 

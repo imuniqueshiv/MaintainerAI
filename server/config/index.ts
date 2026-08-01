@@ -69,7 +69,7 @@ export type AppConfig = {
     infrastructure: true
     auth: true
     githubApp: boolean
-    repositorySync: false
+    repositorySync: boolean
     ai: false
     automation: false
     marketplace: false
@@ -152,7 +152,7 @@ function buildConfig(env: Env): AppConfig {
       infrastructure: true,
       auth: true,
       githubApp: githubConfigured,
-      repositorySync: false,
+      repositorySync: githubConfigured,
       ai: false,
       automation: false,
       marketplace: false,

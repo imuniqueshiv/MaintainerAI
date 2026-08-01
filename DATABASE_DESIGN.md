@@ -126,7 +126,7 @@ erDiagram
 
 ### 3.3 Repository
 
-**Repository** — connected GitHub repo **metadata** (Phase 3; no issue/PR sync yet).
+**Repository** — connected GitHub repo metadata + sync state (Phase 4).
 | id | UUID PK |
 | githubId | BIGINT UNIQUE |
 | nodeId | TEXT NULL | Phase 3 — GitHub node id |
@@ -149,16 +149,30 @@ erDiagram
 | collaborators | INT default 0 |
 | topics | TEXT[] |
 | permissions | JSONB NULL | Phase 3 — permission snapshot |
-| healthScore | INT NULL | latest cached score |
+| healthScore | INT NULL | latest cached score (computed in later phase) |
 | automationEnabled | BOOL default false |
 | automationIssuesResolved | INT default 0 |
 | automationPRsMerged | INT default 0 |
+| syncStatus | ENUM(`idle`,`syncing`,`completed`,`failed`) | Phase 4 |
+| lastFullSyncAt | TIMESTAMP NULL | Phase 4 |
+| lastIncrementalSyncAt | TIMESTAMP NULL | Phase 4 |
+| syncError | TEXT NULL | Phase 4 |
 | connectedAt | TIMESTAMP NULL | Phase 3 — when connected |
 | lastUpdatedGitHub | TIMESTAMP NULL |
 | deletedAt | TIMESTAMP NULL | soft disconnect |
 
 **Label** — repo-scoped labels.
-| id UUID PK | repositoryId FK | name TEXT | color TEXT | description TEXT NULL | UNIQUE(repositoryId, name) |
+| id UUID PK | repositoryId FK | githubId BIGINT NULL | name TEXT | color TEXT | description TEXT NULL | UNIQUE(repositoryId, name) |
+
+### 3.3b Sync ledger (Phase 4)
+
+**SyncJob** — one queued/running/completed/failed/cancelled unit of work per entity.
+| id | repositoryId | organizationId | entity (enum) | status | trigger | mode | attempts | error | bullJobId | triggeredBy | metadata | timestamps |
+
+**SyncCheckpoint** — resumable pagination watermark per `(repositoryId, entity)`.
+| page | cursor | since | completed | lastSuccessAt | metadata | UNIQUE(repositoryId, entity) |
+
+**Milestone / Release / Branch** — synchronized GitHub resources (additive Phase 4 models).
 
 ### 3.4 Contributor
 
@@ -181,21 +195,23 @@ erDiagram
 
 ### 3.5 Issues
 
-**Issue** — from `mockIssues` + `IssueDetailExtended`.
+**Issue** — synchronized from GitHub (Phase 4); product workflow fields remain nullable.
 | id | UUID PK |
 | githubId | BIGINT UNIQUE |
+| nodeId | TEXT NULL |
 | repositoryId | UUID FK → Repository |
 | number | INT | GitHub issue number |
 | title | TEXT |
 | description | TEXT NULL |
-| state | ENUM(`draft`,`open`,`claimed`,`in-progress`,`review`,`blocked`,`ready-to-merge`,`closed`) |
-| priority | ENUM(`low`,`medium`,`high`,`critical`) NULL |
-| estimatedDifficulty | ENUM(`easy`,`medium`,`hard`,`unknown`) default `unknown` |
-| estimatedCompletionTime | TEXT NULL |
-| potentialFilesAffected | TEXT[] |
+| htmlUrl | TEXT NULL |
+| state | ENUM (GitHub sync uses `open`/`closed`) |
+| locked | BOOL |
+| priority | ENUM NULL | product (not GitHub) |
 | commentsCount | INT default 0 |
 | aiGenerated | BOOL default false |
 | authorContributorId | UUID FK → Contributor NULL |
+| milestoneId | UUID FK → Milestone NULL |
+| githubCreatedAt / githubUpdatedAt / closedAt | TIMESTAMP NULL |
 | createdAt/updatedAt | TIMESTAMP | UNIQUE(repositoryId, number) |
 
 **IssueLabel** — M:N Issue↔Label. PK(issueId, labelId).

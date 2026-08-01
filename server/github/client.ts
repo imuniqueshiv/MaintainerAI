@@ -1,4 +1,4 @@
-import { App } from '@octokit/app'
+import { createAppAuth } from '@octokit/auth-app'
 import { Octokit } from '@octokit/rest'
 import { assertGitHubAppConfigured } from '@/server/github/config'
 import { getInstallationToken, invalidateInstallationToken } from '@/server/github/tokens'
@@ -7,30 +7,38 @@ import { createLogger } from '@/server/logger'
 
 const log = createLogger({ component: 'github.client' })
 
-let appSingleton: App | null = null
+let appOctokitSingleton: Octokit | null = null
 
-export function getGitHubApp(): App {
+/**
+ * Octokit authenticated as the GitHub App (JWT), not an installation.
+ * Uses `@octokit/auth-app` (CJS-safe) instead of ESM-only `@octokit/app`.
+ */
+export function getGitHubAppOctokit(): Octokit {
   const creds = assertGitHubAppConfigured()
-  if (appSingleton) return appSingleton
+  if (appOctokitSingleton) return appOctokitSingleton
 
-  appSingleton = new App({
-    appId: creds.appId,
-    privateKey: creds.privateKey,
-    oauth: creds.clientId
-      ? {
-          clientId: creds.clientId,
-          clientSecret: creds.clientSecret ?? '',
-        }
-      : undefined,
-    Octokit,
+  appOctokitSingleton = new Octokit({
+    authStrategy: createAppAuth,
+    auth: {
+      appId: creds.appId,
+      privateKey: creds.privateKey,
+      ...(creds.clientId
+        ? { clientId: creds.clientId, clientSecret: creds.clientSecret ?? '' }
+        : {}),
+    },
   })
 
-  return appSingleton
+  return appOctokitSingleton
+}
+
+/** @deprecated Prefer getGitHubAppOctokit — kept for call-site compatibility. */
+export function getGitHubApp(): Octokit {
+  return getGitHubAppOctokit()
 }
 
 /** Reset Octokit App singleton (tests). */
 export function resetGitHubAppForTests(): void {
-  appSingleton = null
+  appOctokitSingleton = null
 }
 
 /**
@@ -63,6 +71,8 @@ export type GitHubRepoMetadata = {
   forks: number
   openIssues: number
   topics: string[]
+  homepage: string | null
+  licenseSpdx: string | null
   permissions: Record<string, boolean> | null
   lastUpdatedGitHub: Date | null
 }
@@ -84,6 +94,8 @@ function mapRepo(repo: {
   forks_count?: number
   open_issues_count?: number
   topics?: string[]
+  homepage?: string | null
+  license?: { spdx_id?: string | null } | null
   permissions?: Record<string, boolean>
   updated_at?: string | null
 }): GitHubRepoMetadata {
@@ -104,6 +116,8 @@ function mapRepo(repo: {
     forks: repo.forks_count ?? 0,
     openIssues: repo.open_issues_count ?? 0,
     topics: repo.topics ?? [],
+    homepage: repo.homepage ?? null,
+    licenseSpdx: repo.license?.spdx_id ?? null,
     permissions: repo.permissions ?? null,
     lastUpdatedGitHub: repo.updated_at ? new Date(repo.updated_at) : null,
   }
@@ -111,10 +125,10 @@ function mapRepo(repo: {
 
 export async function fetchInstallation(githubInstallationId: number | bigint) {
   try {
-    const app = getGitHubApp()
+    const octokit = getGitHubAppOctokit()
     return await withGitHubRetry(
       () =>
-        app.octokit.request('GET /app/installations/{installation_id}', {
+        octokit.request('GET /app/installations/{installation_id}', {
           installation_id: Number(githubInstallationId),
         }),
       { label: 'get-installation' },

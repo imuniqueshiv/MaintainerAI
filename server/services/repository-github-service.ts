@@ -1,12 +1,16 @@
 import type { Prisma, Repository } from '@prisma/client'
 import { prisma } from '@/server/db/prisma'
 import { AppError } from '@/server/errors/app-error'
+import { getConfig } from '@/server/config'
+import { createLogger } from '@/server/logger'
 import { writeAuditLog } from '@/server/services/audit-service'
 import {
   fetchRepository,
   listInstallationRepositories,
   type GitHubRepoMetadata,
 } from '@/server/github'
+
+const log = createLogger({ component: 'repository.github' })
 
 export function serializeRepository(repo: Repository) {
   return {
@@ -45,6 +49,10 @@ export function toDashboardRepository(repo: Repository) {
     connectedAt: repo.connectedAt,
     installationId: repo.installationId,
     organizationId: repo.organizationId,
+    syncStatus: repo.syncStatus,
+    lastFullSyncAt: repo.lastFullSyncAt,
+    lastIncrementalSyncAt: repo.lastIncrementalSyncAt,
+    lastSyncError: repo.syncError,
   }
 }
 
@@ -73,6 +81,8 @@ export async function upsertRepositoryMetadata(input: {
     forks: input.meta.forks,
     openIssues: input.meta.openIssues,
     topics: input.meta.topics,
+    homepage: input.meta.homepage,
+    licenseSpdx: input.meta.licenseSpdx,
     permissions: (input.meta.permissions ?? undefined) as Prisma.InputJsonValue | undefined,
     lastUpdatedGitHub: input.meta.lastUpdatedGitHub,
     deletedAt: null as Date | null,
@@ -179,6 +189,21 @@ export async function connectRepositories(input: {
       await prisma.repository.updateMany({
         where: { id: { in: disconnectIds } },
         data: { deletedAt: new Date() },
+      })
+    }
+  }
+
+  // Kick off initial repository synchronization asynchronously after connect.
+  if (getConfig().features.repositorySync && getConfig().redis.configured) {
+    const { startRepositorySync } = await import('@/server/sync/coordinator')
+    for (const repo of results) {
+      await startRepositorySync({
+        repositoryId: repo.id,
+        trigger: 'system',
+        mode: 'full',
+        actorUserId: input.actorUserId,
+      }).catch((error) => {
+        log.warn({ err: error, repositoryId: repo.id }, 'Failed to enqueue initial sync after connect')
       })
     }
   }

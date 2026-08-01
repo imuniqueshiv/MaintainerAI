@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Phase 4 Repository Sync:** `server/sync` engine, isolated `sync.*` BullMQ workers + DLQ, SyncJob/SyncCheckpoint ledger, Milestone/Release/Branch models, webhook-driven entity enqueue, sync control + resource APIs, dashboard Issues/PRs/Contributors/Activity/Repos sync status on synchronized data
+- Docs: `SYNC_ENGINE.md`, `SYNC_ARCHITECTURE.md`, `PHASE4_IMPLEMENTATION_PLAN.md`, `PHASE4_COMPLETION_SUMMARY.md`, `PHASE4_REVIEW.md`, `PHASE4_RELEASE_AUDIT.md`
+- Prisma migration `20260801200000_phase4_repository_sync`
+- Docker worker reliability: hoist Prisma client for pnpm, copy `auth.ts`, replace ESM-only `@octokit/app` with `@octokit/auth-app` + REST for App JWT calls
+
+### Added (Phase 3)
+
 - **Phase 3 GitHub App:** `server/github` Octokit layer, install URL/callback, installation + repository metadata APIs, webhook platform (`installation` / `installation_repositories` / `repository`), BullMQ `github.webhooks` worker, live dashboard/repos/github-app UI data
 - Release hardening: mandatory install CSRF state, installation access verification, org hijack prevention, webhook idempotency/claim, Compose worker App env, webhook rate-limit skip, select-repos replace disconnect
 - `GITHUB_APP_SETUP.md`, `WEBHOOKS.md`, `PHASE3_IMPLEMENTATION_PLAN.md`, `PHASE3_RELEASE_AUDIT.md`

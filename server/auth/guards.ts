@@ -1,4 +1,4 @@
-import type { Membership, MembershipRole, Organization } from '@prisma/client'
+import type { Membership, MembershipRole, Organization, Repository } from '@prisma/client'
 import { prisma } from '@/server/db/prisma'
 import { AppError } from '@/server/errors/app-error'
 import { assertMinRole, assertPermission, type AuthUser, type OrgMembershipContext } from '@/server/auth/rbac'
@@ -51,4 +51,20 @@ export async function requireOrgAccess(
     organization: row.organization,
     membership,
   }
+}
+
+/**
+ * Load a connected repository and assert the caller's org membership grants
+ * the given permission. Standard guard for every `/api/v1/repos/:repoId/*` route.
+ */
+export async function requireRepoAccess(
+  repositoryId: string,
+  permission: Permission,
+): Promise<Repository> {
+  const repo = await prisma.repository.findFirst({
+    where: { id: repositoryId, deletedAt: null },
+  })
+  if (!repo) throw AppError.notFound('Repository not found')
+  await requireOrgAccess(repo.organizationId, { permission })
+  return repo
 }

@@ -3,11 +3,11 @@
 import { MessageCircle, GitPullRequest, Clock } from 'lucide-react'
 
 interface Activity {
-  id: number
+  id: string | number
   type: 'issue' | 'pr'
   title: string
   action: string
-  timestamp: Date
+  timestamp: Date | string
   repository: string
   author: string
 }
@@ -18,13 +18,14 @@ interface ActivityTimelineProps {
 }
 
 export function ActivityTimeline({ activities, maxItems = 10 }: ActivityTimelineProps) {
-  const formatTime = (date: Date) => {
+  const formatTime = (value: Date | string) => {
+    const date = value instanceof Date ? value : new Date(value)
     const now = new Date()
     const diff = now.getTime() - date.getTime()
     const hours = Math.floor(diff / (1000 * 60 * 60))
     const days = Math.floor(hours / 24)
 
-    if (hours < 1) return 'Just now'
+    if (Number.isNaN(date.getTime()) || hours < 1) return 'Just now'
     if (hours < 24) return `${hours}h ago`
     if (days < 7) return `${days}d ago`
     return date.toLocaleDateString()

@@ -100,22 +100,24 @@ flowchart TB
 ### 3.5 GitHub Webhooks
 - Single receiver `/api/webhooks/github`. Verifies `X-Hub-Signature-256` (HMAC-SHA256 with webhook secret) before parsing.
 - Persists a `WebhookEvent` row (idempotency via `delivery_id`), enqueues `github.webhooks` / `github.webhook.dispatch`, returns `202` fast (inline fallback without Redis).
-- Phase 3 handled events: `installation`, `installation_repositories`, `repository`. All others are logged and ignored.
-- Issue/PR/push/release business processing is Phase 4+.
+- Installation + repository metadata events update connection state (Phase 3).
+- Phase 4: `issues`, `pull_request`, `label`, `milestone`, `release`, `push`, `member` enqueue isolated `sync.*` jobs via `enqueueEntitySync` (no inline GitHub pagination).
 
 ### 3.6 Octokit Layer
-- Thin wrapper (`server/github/*`) exposing typed methods used by Phase 3 services: list installation repos, get repo metadata, get installation, rate limit, build install URL, verify user installation access. Issue/PR mutation helpers arrive with later phases.
-- Phase 3 uses **REST only**. GraphQL is reserved for later expensive read paths (contributor stats, PR files) and is not implemented yet.
+- Thin wrapper (`server/github/*`) exposing typed methods for installations, repo metadata, and Phase 4 list/fetch helpers (`server/github/sync-api.ts`).
+- Phase 4 uses **REST** with pagination + checkpoints. GraphQL remains reserved for later expensive read paths.
 
 ### 3.7 Prisma + PostgreSQL
 - Prisma is the single data-access layer. Schema in `DATABASE_DESIGN.md`.
 - Migrations via `prisma migrate`; a migration step runs before the web/worker containers start.
+- Phase 4 adds `SyncJob` / `SyncCheckpoint` / `Milestone` / `Release` / `Branch` and extends Issue/PR/Label/Repository sync fields.
 
 ### 3.8 Redis
 - Three roles: (1) BullMQ queue backend, (2) cache for GitHub responses + installation tokens + health scores, (3) rate limiting (sliding window per user/installation).
 
 ### 3.9 BullMQ Workers
-- Separate process (`worker` container) consuming queues. Concurrency and backoff per queue. Repeatable jobs for the scheduler (stale sweeps, health recompute, periodic resync).
+- Separate process (`worker` container) consuming queues. Concurrency and backoff per queue.
+- Phase 4: isolated workers for `sync.repositories|issues|pullrequests|labels|milestones|releases|contributors|branches|statistics` plus dead-letter enqueue. See `SYNC_ARCHITECTURE.md`.
 
 ### 3.10 Object Storage
 - S3-compatible (MinIO for self-host, S3/R2 for SaaS). Stores exports (CSV/JSON), generated artifacts (release notes files), cached avatars. Not on the hot path.

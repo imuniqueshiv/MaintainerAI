@@ -8,11 +8,12 @@ import { PageHeader } from '@/components/shared/page-header'
 import { RepositoryTable } from '@/components/shared/repository-table'
 import { ActivityTimeline } from '@/components/shared/activity-timeline'
 import { HealthBadge } from '@/components/shared/health-badge'
-import { mockActivityTimeline } from '@/lib/mock-data'
 import { useConnectedRepositories } from '@/lib/hooks/use-github'
+import { useSyncedActivity } from '@/lib/hooks/use-synced-data'
 
 export default function Dashboard() {
   const { repositories, loading, error } = useConnectedRepositories()
+  const { activities } = useSyncedActivity()
 
   const avgHealthScore =
     repositories.length === 0
@@ -138,7 +139,7 @@ export default function Dashboard() {
               <CardTitle className="text-lg">Recent Activity</CardTitle>
             </CardHeader>
             <CardContent>
-              <ActivityTimeline activities={mockActivityTimeline} maxItems={5} />
+              <ActivityTimeline activities={activities} maxItems={5} />
             </CardContent>
           </Card>
         </div>

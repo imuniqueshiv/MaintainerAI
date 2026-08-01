@@ -290,7 +290,7 @@ See [ROADMAP.md](./ROADMAP.md) for Current, Next, Future, and long-term visionâ€
 Yes. It is open source under the MIT License. Self-host at no licensing cost.
 
 **Does it work without a GitHub App?**  
-The UI runs locally with sample data. Live repository sync requires GitHub App (or token) configuration.
+The UI runs locally with sample data for future AI/health/automation surfaces. Repository issues, PRs, contributors, and activity use the synchronized database once the GitHub App is installed and sync workers are running. See `SYNC_ENGINE.md`.
 
 **Can I use my own AI models?**  
 Yes. Configure a compatible provider via environment variables.

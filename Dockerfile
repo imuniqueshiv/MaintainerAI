@@ -19,7 +19,12 @@ COPY . .
 ENV DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build?schema=public
 ENV SKIP_ENV_VALIDATION=1
 ENV NEXT_PUBLIC_APP_URL=http://localhost:3000
-RUN pnpm prisma generate
+# pnpm nests `.prisma` under `.pnpm/...`; hoist a copy for runner COPY paths.
+RUN pnpm prisma generate \
+  && SRC="$(find /app/node_modules -type d -name '.prisma' | head -n1)" \
+  && test -n "$SRC" \
+  && mkdir -p /app/node_modules/.prisma \
+  && cp -a "$SRC"/. /app/node_modules/.prisma/
 RUN pnpm build
 
 FROM base AS migrate
@@ -32,11 +37,14 @@ CMD ["pnpm", "exec", "prisma", "migrate", "deploy"]
 FROM base AS worker
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY package.json pnpm-lock.yaml ./
-COPY tsconfig.json ./
 COPY prisma ./prisma
+ENV DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build?schema=public
+ENV SKIP_ENV_VALIDATION=1
+# Generate into the worker image's pnpm layout (avoids brittle COPY of nested .prisma).
+RUN pnpm exec prisma generate
+COPY tsconfig.json ./
+COPY auth.ts ./
 COPY server ./server
 COPY scripts ./scripts
 ENV NODE_ENV=production

@@ -30,6 +30,10 @@ export type DashboardRepository = {
   connectedAt: string | Date | null
   installationId: string
   organizationId: string
+  syncStatus: string
+  lastFullSyncAt: string | Date | null
+  lastIncrementalSyncAt: string | Date | null
+  lastSyncError: string | null
 }
 
 export type GitHubAppSummary = {

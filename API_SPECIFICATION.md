@@ -1,7 +1,7 @@
 # MaintainerAI — API Specification
 
 > Complete REST surface for MaintainerAI v1.0.
-> **Implemented today:** Phase 1 health/meta, Phase 2 Auth/Users/Orgs/Invitations/Settings, Phase 3 GitHub App / installations / repository metadata / webhooks.
+> **Implemented today:** Phase 1 health/meta, Phase 2 Auth/Users/Orgs/Invitations/Settings, Phase 3 GitHub App / installations / repository metadata / webhooks, Phase 4 repository synchronization + resource APIs.
 > Sections marked **Phase 4+** (or without a live `app/api` route) are design targets — do not treat them as shipped contracts.
 > Maps to entities in `DATABASE_DESIGN.md` and UI routes in `app/`.
 
@@ -100,7 +100,7 @@
 | DELETE | `/api/v1/github/installations/:id` | Local disconnect |
 | GET | `/api/v1/github/rate-limit` | Current rate-limit remaining/limit |
 
-> Full issue/PR repository sync (`…/sync`) is **Phase 4+** and is not implemented.
+> Full issue/PR repository sync is **Phase 4** — see `SYNC_ENGINE.md`. Control paths live under `/api/v1/repos/:repoId/sync*` (start/cancel/history/checkpoints). Health recompute remains a later phase.
 
 ## 7. Repositories
 
@@ -111,13 +111,29 @@
 | POST | `/api/v1/repos/connect` | Connect repos from an installation |
 | POST | `/api/v1/repos/:repoId/refresh` | Refresh metadata from GitHub |
 | DELETE | `/api/v1/repos/:repoId` | Disconnect repo (soft delete) |
-| GET | `/api/v1/repos/:repoId/health` | Latest health metrics — **Phase 4+** |
-| GET | `/api/v1/repos/:repoId/health/history` | Health trend — **Phase 4+** |
-| POST | `/api/v1/repos/:repoId/health/recompute` | Recompute health — **Phase 4+** |
+| GET | `/api/v1/repos/:repoId/sync` | Current sync status |
+| POST | `/api/v1/repos/:repoId/sync` | Start full/incremental sync (`202`) |
+| POST | `/api/v1/repos/:repoId/sync/cancel` | Cancel sync jobs |
+| GET | `/api/v1/repos/:repoId/sync/history` | Sync job history |
+| GET | `/api/v1/repos/:repoId/sync/checkpoints` | Checkpoint resume state |
+| GET | `/api/v1/repos/:repoId/issues` | Synced issues |
+| GET | `/api/v1/repos/:repoId/pulls` | Synced pull requests |
+| GET | `/api/v1/repos/:repoId/contributors` | Synced contributors |
+| GET | `/api/v1/repos/:repoId/labels` | Synced labels |
+| GET | `/api/v1/repos/:repoId/milestones` | Synced milestones |
+| GET | `/api/v1/repos/:repoId/releases` | Synced releases |
+| GET | `/api/v1/repos/:repoId/branches` | Synced branches |
+| GET | `/api/v1/issues` | Cross-repo synced issues |
+| GET | `/api/v1/pulls` | Cross-repo synced PRs |
+| GET | `/api/v1/contributors` | Cross-repo synced contributors |
+| GET | `/api/v1/activity` | Synced activity timeline |
+| GET | `/api/v1/sync/statistics` | Aggregate sync statistics |
+| GET | `/api/v1/repos/:repoId/health` | Latest health metrics — **Phase 5+** |
+| GET | `/api/v1/repos/:repoId/health/history` | Health trend — **Phase 5+** |
+| POST | `/api/v1/repos/:repoId/health/recompute` | Recompute health — **Phase 5+** |
 | GET | `/api/v1/repos/:repoId/insights` | AI insights — **Phase 5+** |
 | POST | `/api/v1/repos/:repoId/insights/:insightId/resolve` | Resolve insight — **Phase 5+** |
-| GET | `/api/v1/repos/:repoId/labels` | Repo labels — **Phase 4+** |
-| GET | `/api/v1/repos/:repoId/activity` | Activity timeline — **Phase 4+** |
+| GET | `/api/v1/repos/:repoId/activity` | Per-repo activity — optional alias; use `/api/v1/activity` |
 
 ## 8. Issues
 
@@ -247,7 +263,7 @@
 
 | Method | Path | Description |
 | ------ | ---- | ----------- |
-| POST | `/api/webhooks/github` | Verifies `X-Hub-Signature-256`, records `WebhookEvent` (idempotent by `X-GitHub-Delivery`), enqueues `github.webhooks` job, returns `202`. Phase 3 handles `installation`, `installation_repositories`, `repository` only; all other events are logged and ignored. |
+| POST | `/api/webhooks/github` | Verifies `X-Hub-Signature-256`, records `WebhookEvent` (idempotent by `X-GitHub-Delivery`), enqueues `github.webhooks` job, returns `202`. Handled: installation lifecycle + repository events; Phase 4 also enqueues incremental sync for `issues`, `pull_request`, `label`, `milestone`, `release`, `push`, `member`. |
 
 ## 18. System
 

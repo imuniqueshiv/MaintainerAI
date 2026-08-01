@@ -47,6 +47,33 @@ enum SyncStatus {
   failed
 }
 
+enum SyncJobStatus {
+  queued
+  running
+  completed
+  failed
+  cancelled
+}
+
+enum SyncEntityType {
+  repository
+  issues
+  pull_requests @map("pull-requests")
+  labels
+  milestones
+  releases
+  contributors
+  branches
+  statistics
+}
+
+enum SyncTrigger {
+  manual
+  webhook
+  schedule
+  system
+}
+
 enum IssueState {
   draft
   open
@@ -352,37 +379,43 @@ model Installation {
 // ---------------------------------------------------------------------------
 
 model Repository {
-  id                        String    @id @default(uuid()) @db.Uuid
-  githubId                  BigInt    @unique
+  id                        String     @id @default(uuid()) @db.Uuid
+  githubId                  BigInt     @unique
   nodeId                    String?
-  installationId            String    @db.Uuid
-  organizationId            String    @db.Uuid
+  installationId            String     @db.Uuid
+  organizationId            String     @db.Uuid
   name                      String
   owner                     String
-  fullName                  String    @unique
+  fullName                  String     @unique
   description               String?
   url                       String
   language                  String?
   defaultBranch             String?
-  isPrivate                 Boolean   @default(false)
-  archived                  Boolean   @default(false)
-  disabled                  Boolean   @default(false)
-  stars                     Int       @default(0)
-  forks                     Int       @default(0)
-  openIssues                Int       @default(0)
-  openPRs                   Int       @default(0)
-  collaborators             Int       @default(0)
+  homepage                  String?
+  licenseSpdx               String?
+  isPrivate                 Boolean    @default(false)
+  archived                  Boolean    @default(false)
+  disabled                  Boolean    @default(false)
+  stars                     Int        @default(0)
+  forks                     Int        @default(0)
+  openIssues                Int        @default(0)
+  openPRs                   Int        @default(0)
+  collaborators             Int        @default(0)
   topics                    String[]
   permissions               Json?
   healthScore               Int?
-  automationEnabled         Boolean   @default(false)
-  automationIssuesResolved  Int       @default(0)
-  automationPRsMerged       Int       @default(0)
+  automationEnabled         Boolean    @default(false)
+  automationIssuesResolved  Int        @default(0)
+  automationPRsMerged       Int        @default(0)
+  syncStatus                SyncStatus @default(idle)
+  lastFullSyncAt            DateTime?
+  lastIncrementalSyncAt     DateTime?
+  syncError                 String?
   connectedAt               DateTime?
   lastUpdatedGitHub         DateTime?
   deletedAt                 DateTime?
-  createdAt                 DateTime  @default(now())
-  updatedAt                 DateTime  @updatedAt
+  createdAt                 DateTime   @default(now())
+  updatedAt                 DateTime   @updatedAt
 
   installation        Installation         @relation(fields: [installationId], references: [id], onDelete: Restrict)
   organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -390,6 +423,11 @@ model Repository {
   issues              Issue[]
   pullRequests        PullRequest[]
   repoContributors    RepoContributor[]
+  milestones          Milestone[]
+  releases            Release[]
+  branches            Branch[]
+  syncJobs            SyncJob[]
+  syncCheckpoints     SyncCheckpoint[]
   healthRecords       RepositoryHealth[]
   aiInsights          AIInsight[]
   workflows           Workflow[]
@@ -401,10 +439,12 @@ model Repository {
   @@index([organizationId])
   @@index([installationId])
   @@index([deletedAt])
+  @@index([syncStatus])
 }
 
 model Label {
   id           String  @id @default(uuid()) @db.Uuid
+  githubId     BigInt?
   repositoryId String  @db.Uuid
   name         String
   color        String
@@ -414,6 +454,7 @@ model Label {
   issues     IssueLabel[]
 
   @@unique([repositoryId, name])
+  @@index([repositoryId, githubId])
 }
 
 // ---------------------------------------------------------------------------
@@ -485,23 +526,31 @@ model ContributorBadge {
 model Issue {
   id                        String         @id @default(uuid()) @db.Uuid
   githubId                  BigInt         @unique
+  nodeId                    String?
   repositoryId              String         @db.Uuid
   number                    Int
   title                     String
   description               String?        @db.Text
+  htmlUrl                   String?
   state                     IssueState     @default(open)
   priority                  IssuePriority?
   estimatedDifficulty       Difficulty     @default(unknown)
   estimatedCompletionTime   String?
   potentialFilesAffected    String[]
   commentsCount             Int            @default(0)
+  locked                    Boolean        @default(false)
   aiGenerated               Boolean        @default(false)
   authorContributorId       String?        @db.Uuid
+  milestoneId               String?        @db.Uuid
+  closedAt                  DateTime?
+  githubCreatedAt           DateTime?
+  githubUpdatedAt           DateTime?
   createdAt                 DateTime       @default(now())
   updatedAt                 DateTime       @updatedAt
 
   repository   Repository            @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
   author       Contributor?          @relation("IssueAuthor", fields: [authorContributorId], references: [id], onDelete: SetNull)
+  milestone    Milestone?            @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
   labels       IssueLabel[]
   assignees    IssueAssignee[]
   events       IssueEvent[]
@@ -513,6 +562,7 @@ model Issue {
   @@unique([repositoryId, number])
   @@index([repositoryId, state])
   @@index([authorContributorId])
+  @@index([milestoneId])
 }
 
 model IssueLabel {
@@ -580,11 +630,18 @@ model IssueChecklistItem {
 model PullRequest {
   id                     String           @id @default(uuid()) @db.Uuid
   githubId               BigInt           @unique
+  nodeId                 String?
   repositoryId           String           @db.Uuid
   number                 Int
   title                  String
   description            String?          @db.Text
+  htmlUrl                String?
   state                  PullRequestState @default(open)
+  draft                  Boolean          @default(false)
+  merged                 Boolean          @default(false)
+  mergeCommitSha         String?
+  baseRef                String?
+  headRef                String?
   authorContributorId    String?          @db.Uuid
   additions              Int              @default(0)
   deletions              Int              @default(0)
@@ -597,6 +654,10 @@ model PullRequest {
   documentationCoverage  Boolean?
   mergeReadinessScore    Int?
   aiReviewCompleted      Boolean          @default(false)
+  mergedAt               DateTime?
+  closedAt               DateTime?
+  githubCreatedAt        DateTime?
+  githubUpdatedAt        DateTime?
   createdAt              DateTime         @default(now())
   updatedAt              DateTime         @updatedAt
 
@@ -702,6 +763,117 @@ model PrClosesIssue {
   issue       Issue       @relation(fields: [issueId], references: [id], onDelete: Cascade)
 
   @@id([pullRequestId, issueId])
+}
+
+// ---------------------------------------------------------------------------
+// Sync ledger + repository resources (Phase 4)
+// ---------------------------------------------------------------------------
+
+model Milestone {
+  id              String    @id @default(uuid()) @db.Uuid
+  githubId        BigInt    @unique
+  repositoryId    String    @db.Uuid
+  number          Int
+  title           String
+  description     String?   @db.Text
+  state           String
+  dueOn           DateTime?
+  closedAt        DateTime?
+  htmlUrl         String?
+  openIssues      Int       @default(0)
+  closedIssues    Int       @default(0)
+  githubCreatedAt DateTime?
+  githubUpdatedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  issues     Issue[]
+
+  @@unique([repositoryId, number])
+  @@index([repositoryId, state])
+}
+
+model Release {
+  id              String    @id @default(uuid()) @db.Uuid
+  githubId        BigInt    @unique
+  repositoryId    String    @db.Uuid
+  tagName        String
+  name            String?
+  body            String?   @db.Text
+  draft           Boolean   @default(false)
+  prerelease      Boolean   @default(false)
+  htmlUrl         String?
+  publishedAt     DateTime?
+  githubCreatedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@unique([repositoryId, tagName])
+  @@index([repositoryId, publishedAt(sort: Desc)])
+}
+
+model Branch {
+  id           String   @id @default(uuid()) @db.Uuid
+  repositoryId String   @db.Uuid
+  name         String
+  sha          String?
+  protected    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@unique([repositoryId, name])
+}
+
+model SyncJob {
+  id             String         @id @default(uuid()) @db.Uuid
+  repositoryId   String         @db.Uuid
+  organizationId String?        @db.Uuid
+  entity         SyncEntityType
+  trigger        SyncTrigger    @default(manual)
+  status         SyncJobStatus  @default(queued)
+  mode           String         @default("full")
+  progress       Int            @default(0)
+  totalItems     Int?
+  processedItems Int            @default(0)
+  error          String?
+  bullJobId      String?
+  triggeredBy    String?        @db.Uuid
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  metadata       Json?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@index([repositoryId, createdAt(sort: Desc)])
+  @@index([status, createdAt])
+  @@index([entity, status])
+}
+
+model SyncCheckpoint {
+  id            String         @id @default(uuid()) @db.Uuid
+  repositoryId  String         @db.Uuid
+  entity        SyncEntityType
+  cursor        String?
+  page          Int            @default(1)
+  since         DateTime?
+  etag          String?
+  completed     Boolean        @default(false)
+  lastSuccessAt DateTime?
+  metadata      Json?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@unique([repositoryId, entity])
+  @@index([repositoryId])
 }
 
 // ---------------------------------------------------------------------------

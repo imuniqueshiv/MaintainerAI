@@ -12,13 +12,21 @@ import { useConnectedRepositories } from '@/lib/hooks/use-github'
 
 export default function RepositoriesPage() {
   const [searchTerm, setSearchTerm] = useState('')
-  const { repositories, loading, error } = useConnectedRepositories()
+  const { repositories, loading, error, setRepositories } = useConnectedRepositories()
 
   const filteredRepos = repositories.filter(
     (repo) =>
       `${repo.owner}/${repo.name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (repo.description ?? '').toLowerCase().includes(searchTerm.toLowerCase()),
   )
+
+  function markSyncing(repositoryId: string) {
+    setRepositories((prev) =>
+      prev.map((repo) =>
+        repo.id === repositoryId ? { ...repo, syncStatus: 'syncing' } : repo,
+      ),
+    )
+  }
 
   return (
     <div className="space-y-8">
@@ -56,7 +64,7 @@ export default function RepositoriesPage() {
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading repositories…</p>
       ) : filteredRepos.length > 0 ? (
-        <RepositoryTable repositories={filteredRepos} />
+        <RepositoryTable repositories={filteredRepos} onSynced={markSyncing} />
       ) : (
         <Card className="border border-border">
           <CardContent className="pt-12 pb-12 text-center space-y-3">

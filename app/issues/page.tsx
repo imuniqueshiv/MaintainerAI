@@ -5,7 +5,7 @@ import { Search, ChevronRight, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { mockIssues } from '@/lib/mock-data'
+import { useSyncedIssues, type SyncedIssue } from '@/lib/hooks/use-synced-data'
 import {
   Select,
   SelectContent,
@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-const getPriorityColor = (priority: string) => {
+const getPriorityColor = (priority: string | null) => {
   switch (priority) {
     case 'high':
       return 'bg-red-500/10 text-red-700 dark:text-red-400'
@@ -26,39 +26,40 @@ const getPriorityColor = (priority: string) => {
 }
 
 export default function IssuesPage() {
+  const { issues, loading, error } = useSyncedIssues()
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
-  const [selectedIssue, setSelectedIssue] = useState<(typeof mockIssues)[0] | null>(
-    null
-  )
+  const [selectedIssue, setSelectedIssue] = useState<SyncedIssue | null>(null)
 
-  const filteredIssues = mockIssues.filter((issue) => {
+  const filteredIssues = issues.filter((issue) => {
     const matchesSearch =
       issue.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      issue.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus =
-      filterStatus === 'all' || issue.status === filterStatus
-
+      (issue.description ?? '').toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesStatus = filterStatus === 'all' || issue.status === filterStatus
     return matchesSearch && matchesStatus
   })
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Issues</h1>
           <p className="text-muted-foreground mt-2">
-            Manage and track all repository issues.
+            Browse synchronized issues across your connected repositories.
           </p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" variant="outline" disabled>
           <AlertCircle className="w-4 h-4" />
           Create Issue
         </Button>
       </div>
 
-      {/* Search and Filters */}
+      {error ? (
+        <Card className="border border-border">
+          <CardContent className="pt-6 text-sm text-muted-foreground">{error}</CardContent>
+        </Card>
+      ) : null}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="md:col-span-2 relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -81,128 +82,102 @@ export default function IssuesPage() {
         </Select>
       </div>
 
-      {/* Issues List */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-3">
-          {filteredIssues.map((issue) => (
-            <Card
-              key={issue.id}
-              className="border border-border cursor-pointer hover:bg-secondary/50 transition-colors"
-              onClick={() => setSelectedIssue(issue)}
-            >
-              <CardContent className="pt-6">
-                <div className="flex items-start gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs font-mono text-muted-foreground">
-                        #{issue.number}
-                      </span>
-                      <h3 className="font-semibold text-foreground">
-                        {issue.title}
-                      </h3>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      {issue.description}
-                    </p>
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <span
-                        className={`text-xs px-2 py-1 rounded-full font-medium ${getPriorityColor(
-                          issue.priority
-                        )}`}
-                      >
-                        {issue.priority}
-                      </span>
-                      {issue.labels.map((label) => (
-                        <span
-                          key={label}
-                          className="text-xs px-2 py-1 rounded-full bg-secondary text-secondary-foreground"
-                        >
-                          {label}
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading synchronized issues…</p>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-3">
+            {filteredIssues.map((issue) => (
+              <Card
+                key={issue.id}
+                className="border border-border cursor-pointer hover:bg-secondary/50 transition-colors"
+                onClick={() => setSelectedIssue(issue)}
+              >
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs font-mono text-muted-foreground">
+                          #{issue.number}
                         </span>
-                      ))}
-                      <span className="text-xs text-muted-foreground">
-                        by {issue.author}
-                      </span>
+                        <h3 className="font-semibold text-foreground">{issue.title}</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {issue.description || 'No description'}
+                      </p>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full font-medium ${getPriorityColor(
+                            issue.priority,
+                          )}`}
+                        >
+                          {issue.priority ?? 'medium'}
+                        </span>
+                        {issue.labels.map((label) => (
+                          <span
+                            key={label}
+                            className="text-xs px-2 py-1 rounded-full bg-secondary text-secondary-foreground"
+                          >
+                            {label}
+                          </span>
+                        ))}
+                        <span className="text-xs text-muted-foreground">by {issue.author}</span>
+                        <span className="text-xs text-muted-foreground">{issue.repository}</span>
+                      </div>
                     </div>
+                    <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                   </div>
-                  <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {selectedIssue && (
+            <Card className="border border-border h-fit sticky top-20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Issue Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">ISSUE</p>
+                  <p className="text-sm font-mono text-foreground">#{selectedIssue.number}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">TITLE</p>
+                  <p className="text-sm font-semibold text-foreground">{selectedIssue.title}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">STATUS</p>
+                  <p className="text-sm text-foreground capitalize">{selectedIssue.status}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">REPOSITORY</p>
+                  <p className="text-sm text-foreground">{selectedIssue.repository}</p>
+                </div>
+                <div className="pt-4 border-t border-border">
+                  {selectedIssue.htmlUrl ? (
+                    <a href={selectedIssue.htmlUrl} target="_blank" rel="noreferrer">
+                      <Button className="w-full" size="sm">
+                        View on GitHub
+                      </Button>
+                    </a>
+                  ) : (
+                    <Button className="w-full" size="sm" disabled>
+                      View on GitHub
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
-          ))}
+          )}
         </div>
+      )}
 
-        {/* Issue Details Panel */}
-        {selectedIssue && (
-          <Card className="border border-border h-fit sticky top-20">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Issue Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-2">
-                  ISSUE
-                </p>
-                <p className="text-sm font-mono text-foreground">
-                  #{selectedIssue.number}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-2">
-                  TITLE
-                </p>
-                <p className="text-sm font-semibold text-foreground">
-                  {selectedIssue.title}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-2">
-                  STATUS
-                </p>
-                <p className="text-sm text-foreground capitalize">
-                  {selectedIssue.status}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-2">
-                  PRIORITY
-                </p>
-                <span
-                  className={`text-xs px-2 py-1 rounded-full font-medium inline-block ${getPriorityColor(
-                    selectedIssue.priority
-                  )}`}
-                >
-                  {selectedIssue.priority}
-                </span>
-              </div>
-
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-2">
-                  REPOSITORY
-                </p>
-                <p className="text-sm text-foreground">
-                  {selectedIssue.repository}
-                </p>
-              </div>
-
-              <div className="pt-4 border-t border-border">
-                <Button className="w-full" size="sm">
-                  View on GitHub
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {filteredIssues.length === 0 && (
+      {!loading && filteredIssues.length === 0 && (
         <Card className="border border-border">
           <CardContent className="pt-12 pb-12 text-center">
             <p className="text-muted-foreground">
-              No issues found matching your criteria.
+              No synchronized issues yet. Connect repositories and run a sync.
             </p>
           </CardContent>
         </Card>
