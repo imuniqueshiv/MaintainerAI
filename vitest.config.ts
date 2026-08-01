@@ -6,7 +6,10 @@ export default defineConfig({
     environment: 'node',
     setupFiles: ['./tests/setup.ts'],
     include: ['tests/**/*.test.ts'],
-    testTimeout: 15_000,
+    testTimeout: 30_000,
+    hookTimeout: 60_000,
+    // Windows + Next route graph imports are slow under parallel load.
+    fileParallelism: false,
   },
   resolve: {
     alias: {

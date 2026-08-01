@@ -91,7 +91,8 @@ Built for individuals, community teams, and organizations that care about sustai
 ├───────────────┴─────────────────────┴───────────────────────┤
 │                 Shared components · hooks · lib             │
 ├─────────────────────────────────────────────────────────────┤
-│  Future: GitHub App · Webhooks · AI Providers · API / SDK   │
+│  Live: Auth · Orgs · GitHub App · Webhooks · Repo metadata  │
+│  Future: Repo sync · AI Providers · Automation · API / SDK  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -228,23 +229,26 @@ Configuration is validated by `server/config` — do not read `process.env` in a
 | `NEXTAUTH_URL`          | Auth.js canonical URL                  | For OAuth callbacks       |
 | `NEXTAUTH_SECRET`       | Auth.js session secret (≥16 chars)     | For sign-in               |
 | `GITHUB_OAUTH_CLIENT_ID` / `_SECRET` | GitHub OAuth App credentials | For sign-in        |
+| `GITHUB_APP_ID` | GitHub App ID | Phase 3 install/API |
+| `GITHUB_APP_CLIENT_ID` / `_SECRET` | GitHub App OAuth (optional) | Phase 3 |
+| `GITHUB_APP_PRIVATE_KEY` | App PEM private key | Phase 3 |
+| `GITHUB_WEBHOOK_SECRET` | Webhook HMAC secret | Phase 3 |
+| `GITHUB_APP_SLUG` | App slug for install URL | Phase 3 (default `maintainerai`) |
 | `QUEUE_PREFIX`          | BullMQ prefix (default `maintainerai`) | No                        |
 | `LOG_LEVEL`             | Pino log level                         | No                        |
-| `GITHUB_APP_*` / `AI_*` | Future milestones                      | Phase 3+                  |
+| `AI_*`                  | AI providers                           | Phase 5+                  |
 
 See [docs/configuration.md](./docs/configuration.md).
 
 ## GitHub App Setup
 
-To connect real repositories:
+Step-by-step: **[GITHUB_APP_SETUP.md](./GITHUB_APP_SETUP.md)** · Webhooks: **[WEBHOOKS.md](./WEBHOOKS.md)**
 
-1. Create a GitHub App in your organization or user settings
-2. Set permissions required for issues, pull requests, and metadata
-3. Configure the webhook URL and secret
-4. Install the app on selected repositories
-5. Add credentials to your environment
-
-Step-by-step: [docs/github-app.md](./docs/github-app.md)
+1. Create a GitHub App (metadata + installation events)
+2. Set callback `{APP_URL}/api/v1/auth/github/callback` and webhook `{APP_URL}/api/webhooks/github`
+3. Add `GITHUB_APP_*` credentials to `.env.local` (placeholders only in git)
+4. Sign in, open `/install`, approve on GitHub
+5. Select/connect repositories; dashboard reads live metadata via `/api/v1/repos`
 
 ## AI Providers
 

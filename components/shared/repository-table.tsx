@@ -7,14 +7,14 @@ import { HealthBadge } from './health-badge'
 import { AutomationBadge } from './automation-badge'
 
 interface Repository {
-  id: number
+  id: string | number
   name: string
   owner: string
-  description: string
+  description: string | null
   stars: number
   forks: number
-  language: string
-  lastUpdated: Date
+  language: string | null
+  lastUpdated: Date | string
   healthScore: number
   automationEnabled: boolean
   automationIssuesResolved: number
@@ -60,7 +60,7 @@ export function RepositoryTable({ repositories }: RepositoryTableProps) {
                       <GitFork className="w-3 h-3" /> {repo.forks}
                     </span>
                     <span className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded">
-                      {repo.language}
+                      {repo.language ?? 'Unknown'}
                     </span>
                   </div>
                 </div>

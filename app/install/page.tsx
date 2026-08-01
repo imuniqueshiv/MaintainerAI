@@ -5,16 +5,33 @@ import { Check, ArrowRight, Shield, Lock, GitBranch, AlertCircle } from 'lucide-
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import Link from 'next/link'
+import { startGitHubAppInstall } from '@/lib/hooks/use-github'
 
 export default function InstallPage() {
-  const [step, setStep] = useState<'welcome' | 'permissions' | 'repository' | 'success'>('welcome')
+  const [step, setStep] = useState<'welcome' | 'permissions' | 'installing' | 'success'>('welcome')
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
 
   const permissions = [
-    { name: 'Repository Contents', description: 'Read and write access to code', icon: Shield },
-    { name: 'Issues', description: 'Manage issues and comments', icon: AlertCircle },
-    { name: 'Pull Requests', description: 'Review and manage PRs', icon: ArrowRight },
-    { name: 'Workflows', description: 'Access GitHub Actions', icon: Lock },
+    { name: 'Repository metadata', description: 'Read repository names, visibility, and settings', icon: Shield },
+    { name: 'Administration (read)', description: 'Detect installation account and permissions', icon: Lock },
+    { name: 'Webhooks', description: 'Receive installation and repository events', icon: GitBranch },
+    { name: 'Contents (future)', description: 'Issue/PR sync arrives in later phases', icon: AlertCircle },
   ]
+
+  async function launchInstall() {
+    try {
+      setBusy(true)
+      setError(null)
+      setStep('installing')
+      const url = await startGitHubAppInstall()
+      window.location.href = url
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to start GitHub App installation')
+      setStep('permissions')
+      setBusy(false)
+    }
+  }
 
   if (step === 'welcome') {
     return (
@@ -34,22 +51,22 @@ export default function InstallPage() {
             <div className="flex items-start gap-3 p-4 rounded-lg bg-secondary/50 border border-border">
               <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium text-foreground">AI-Powered Automation</p>
-                <p className="text-sm text-muted-foreground">Automate issue management and PR reviews</p>
+                <p className="font-medium text-foreground">GitHub-native installation</p>
+                <p className="text-sm text-muted-foreground">Install via the official GitHub App flow</p>
               </div>
             </div>
             <div className="flex items-start gap-3 p-4 rounded-lg bg-secondary/50 border border-border">
               <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium text-foreground">Repository Insights</p>
-                <p className="text-sm text-muted-foreground">Get detailed analytics and health metrics</p>
+                <p className="font-medium text-foreground">Repository discovery</p>
+                <p className="text-sm text-muted-foreground">Connect repositories with metadata only in Phase 3</p>
               </div>
             </div>
             <div className="flex items-start gap-3 p-4 rounded-lg bg-secondary/50 border border-border">
               <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium text-foreground">Contributor Management</p>
-                <p className="text-sm text-muted-foreground">Track and support your team</p>
+                <p className="font-medium text-foreground">Secure webhooks</p>
+                <p className="text-sm text-muted-foreground">Signature-verified delivery logging</p>
               </div>
             </div>
           </div>
@@ -69,7 +86,7 @@ export default function InstallPage() {
     )
   }
 
-  if (step === 'permissions') {
+  if (step === 'permissions' || step === 'installing') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-background flex items-center justify-center p-4">
         <div className="max-w-2xl w-full space-y-8">
@@ -97,63 +114,25 @@ export default function InstallPage() {
             })}
           </div>
 
+          {error ? (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+              <p className="text-sm text-red-900 dark:text-red-200">{error}</p>
+            </div>
+          ) : null}
+
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
             <p className="text-sm text-blue-900 dark:text-blue-200">
-              Your data is secure. We only access what we need to provide our services. Read our{' '}
-              <a href="/docs/privacy" className="underline font-medium">
-                privacy policy
-              </a>
-              .
+              You will be redirected to GitHub to choose an account and repositories. Configure the app
+              callback URL to <code className="text-xs">/api/v1/auth/github/callback</code>.
             </p>
           </div>
 
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setStep('welcome')} className="flex-1">
+            <Button variant="outline" onClick={() => setStep('welcome')} className="flex-1" disabled={busy}>
               Back
             </Button>
-            <Button onClick={() => setStep('repository')} className="flex-1 gap-2">
-              Continue <ArrowRight className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (step === 'repository') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-background flex items-center justify-center p-4">
-        <div className="max-w-lg w-full space-y-8">
-          <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold text-foreground">Select Repositories</h1>
-            <p className="text-muted-foreground">Choose which repositories to install on</p>
-          </div>
-
-          <div className="space-y-2">
-            {[
-              { name: 'react-components', selected: true },
-              { name: 'next-auth', selected: true },
-              { name: 'tailwindcss', selected: false },
-            ].map((repo) => (
-              <label key={repo.name} className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-secondary/50 cursor-pointer">
-                <input type="checkbox" defaultChecked={repo.selected} className="w-4 h-4 rounded" />
-                <span className="font-medium text-foreground">{repo.name}</span>
-              </label>
-            ))}
-          </div>
-
-          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-            <p className="text-sm text-amber-900 dark:text-amber-200">
-              You can always install on more repositories later.
-            </p>
-          </div>
-
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setStep('permissions')} className="flex-1">
-              Back
-            </Button>
-            <Button onClick={() => setStep('success')} className="flex-1 gap-2">
-              Install <ArrowRight className="w-4 h-4" />
+            <Button onClick={launchInstall} className="flex-1 gap-2" disabled={busy}>
+              {busy ? 'Redirecting…' : 'Install on GitHub'} <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
         </div>
@@ -176,21 +155,6 @@ export default function InstallPage() {
         <div className="space-y-2">
           <h1 className="text-3xl font-bold text-foreground">Installation Complete</h1>
           <p className="text-muted-foreground">MaintainerAI is now active on your repositories</p>
-        </div>
-
-        <div className="space-y-2 text-left bg-secondary/50 p-6 rounded-lg border border-border">
-          <div className="flex items-center gap-2">
-            <Check className="w-5 h-5 text-green-600" />
-            <span className="text-foreground">GitHub App installed</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Check className="w-5 h-5 text-green-600" />
-            <span className="text-foreground">Webhook configured</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Check className="w-5 h-5 text-green-600" />
-            <span className="text-foreground">Repositories synced</span>
-          </div>
         </div>
 
         <Link href="/repositories">

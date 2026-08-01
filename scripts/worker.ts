@@ -3,6 +3,7 @@ import { getConfig } from '../server/config'
 import { logger } from '../server/logger'
 import { registerShutdownHandlers, onShutdown } from '../server/utils/shutdown'
 import { startInfrastructureWorker } from '../server/queue/workers'
+import { startGitHubWebhookWorker } from '../server/queue/jobs/webhook-dispatch'
 import { closeAllQueues } from '../server/queue/queues'
 import { closeQueueConnection } from '../server/queue/connection'
 import { disconnectPrisma } from '../server/db/prisma'
@@ -33,6 +34,7 @@ async function main() {
   )
 
   startInfrastructureWorker()
+  startGitHubWebhookWorker()
 
   // Schedule a repeating infrastructure heartbeat (example job only).
   const queue = getInfrastructureQueue()

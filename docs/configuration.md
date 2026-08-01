@@ -70,11 +70,32 @@ GitHub OAuth App **Authorization callback URL**:
 
 See [AUTHENTICATION_FLOW.md](../AUTHENTICATION_FLOW.md) and [RBAC_DOCUMENTATION.md](../RBAC_DOCUMENTATION.md).
 
-## Future milestones (optional, unused in Phase 2)
+## GitHub App (Phase 3)
+
+| Variable | Required | Description |
+| -------- | -------- | ----------- |
+| `GITHUB_APP_ID` | For App features | Numeric App ID |
+| `GITHUB_APP_CLIENT_ID` | Recommended | App client id |
+| `GITHUB_APP_CLIENT_SECRET` | Recommended | App client secret |
+| `GITHUB_APP_PRIVATE_KEY` | For App features | PEM private key (`\n` escaped OK) |
+| `GITHUB_WEBHOOK_SECRET` | For App features | Webhook HMAC secret |
+| `GITHUB_APP_SLUG` | No (`maintainerai`) | Public app slug for install URLs |
+| `GITHUB_APP_STRICT` | No (`false`) | Fail startup when App env missing |
+| `GITHUB_WEBHOOK_INLINE` | No (`false`) | Dispatch webhooks in-process (skip BullMQ) |
+
+GitHub App URLs:
+
+```text
+Callback: {NEXT_PUBLIC_APP_URL}/api/v1/auth/github/callback
+Webhook:  {NEXT_PUBLIC_APP_URL}/api/webhooks/github
+```
+
+See [GITHUB_APP_SETUP.md](../GITHUB_APP_SETUP.md) and [WEBHOOKS.md](../WEBHOOKS.md).
+
+## Future milestones (optional, unused in Phase 3)
 
 Documented in `.env.example`:
 
-- GitHub App: `GITHUB_APP_*`, `GITHUB_WEBHOOK_SECRET`
 - AI: `AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL`, `AI_BASE_URL`
 - Storage: `STORAGE_*`
 - Observability: `SENTRY_DSN`

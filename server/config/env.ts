@@ -53,13 +53,18 @@ export const envSchema = z.object({
   AUTH_SESSION_UPDATE_AGE_SECONDS: z.coerce.number().int().positive().default(60 * 60 * 24),
   AUTH_CSRF_PROTECT: booleanFromEnv.default(false),
 
-  // Future milestones (optional)
+  // GitHub App (Phase 3)
   GITHUB_APP_ID: z.string().optional(),
   GITHUB_APP_CLIENT_ID: z.string().optional(),
   GITHUB_APP_CLIENT_SECRET: z.string().optional(),
   GITHUB_APP_PRIVATE_KEY: z.string().optional(),
   GITHUB_WEBHOOK_SECRET: z.string().optional(),
-  GITHUB_APP_SLUG: z.string().optional(),
+  GITHUB_APP_SLUG: z.string().default('maintainerai'),
+  GITHUB_APP_STRICT: booleanFromEnv.default(false),
+  /** Process webhooks inline in the web process (skip BullMQ). Useful without a worker. */
+  GITHUB_WEBHOOK_INLINE: booleanFromEnv.default(false),
+
+  // Future milestones (optional)
   AI_PROVIDER: z.enum(['openai', 'anthropic', 'azure', 'ollama', 'custom']).optional(),
   AI_API_KEY: z.string().optional(),
   AI_MODEL: z.string().optional(),
@@ -126,4 +131,21 @@ export function assertAuthEnv(env: Env): void {
 export function isAuthConfigured(env: Env): boolean {
   const secret = env.AUTH_SECRET ?? env.NEXTAUTH_SECRET
   return Boolean(secret && env.GITHUB_OAUTH_CLIENT_ID && env.GITHUB_OAUTH_CLIENT_SECRET)
+}
+
+export function isGitHubAppConfigured(env: Env): boolean {
+  return Boolean(env.GITHUB_APP_ID && env.GITHUB_APP_PRIVATE_KEY && env.GITHUB_WEBHOOK_SECRET)
+}
+
+export function assertGitHubAppEnv(env: Env): void {
+  const missing: string[] = []
+  if (!env.GITHUB_APP_ID) missing.push('GITHUB_APP_ID')
+  if (!env.GITHUB_APP_PRIVATE_KEY) missing.push('GITHUB_APP_PRIVATE_KEY')
+  if (!env.GITHUB_WEBHOOK_SECRET) missing.push('GITHUB_WEBHOOK_SECRET')
+  if (missing.length === 0) return
+
+  const message = `Missing required GitHub App environment variables: ${missing.join(', ')}. See .env.example and GITHUB_APP_SETUP.md.`
+  if (env.GITHUB_APP_STRICT) {
+    throw new Error(message)
+  }
 }

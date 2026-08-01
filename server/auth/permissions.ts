@@ -17,6 +17,10 @@ export const PERMISSIONS = [
   'settings:read',
   'settings:update',
   'ownership:transfer',
+  'github:read',
+  'github:manage',
+  'repos:read',
+  'repos:manage',
 ] as const
 
 export type Permission = (typeof PERMISSIONS)[number]
@@ -28,10 +32,10 @@ const ROLE_RANK: Record<MembershipRole, number> = {
   admin: 4,
 }
 
-/** Permissions granted to each membership role (inclusive of lower roles via rank checks elsewhere). */
+/** Permissions granted to each membership role. */
 const ROLE_PERMISSIONS: Record<MembershipRole, readonly Permission[]> = {
-  viewer: ['org:read', 'members:read', 'settings:read'],
-  developer: ['org:read', 'members:read', 'settings:read'],
+  viewer: ['org:read', 'members:read', 'settings:read', 'github:read', 'repos:read'],
+  developer: ['org:read', 'members:read', 'settings:read', 'github:read', 'repos:read'],
   maintainer: [
     'org:read',
     'org:update',
@@ -42,6 +46,10 @@ const ROLE_PERMISSIONS: Record<MembershipRole, readonly Permission[]> = {
     'audit:read',
     'settings:read',
     'settings:update',
+    'github:read',
+    'github:manage',
+    'repos:read',
+    'repos:manage',
   ],
   admin: [
     'org:read',
@@ -56,6 +64,10 @@ const ROLE_PERMISSIONS: Record<MembershipRole, readonly Permission[]> = {
     'settings:read',
     'settings:update',
     'ownership:transfer',
+    'github:read',
+    'github:manage',
+    'repos:read',
+    'repos:manage',
   ],
 }
 

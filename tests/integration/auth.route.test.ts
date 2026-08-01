@@ -12,7 +12,10 @@ vi.mock('@/auth', () => ({
 vi.mock('@/server/auth/session', () => ({
   getSession: vi.fn(async () => null),
   getCurrentUser: vi.fn(async () => null),
-  requireUser: vi.fn(),
+  requireUser: vi.fn(async () => {
+    const { AppError } = await import('@/server/errors/app-error')
+    throw AppError.unauthorized('Authentication required')
+  }),
   readSessionToken: vi.fn(),
   touchSession: vi.fn(),
   listUserSessions: vi.fn(),
@@ -43,11 +46,9 @@ describe('auth routes (unauthenticated)', () => {
     expect(body.data.user).toBeNull()
   })
 
-  it('GET /api/v1/auth/github/install-url returns 503 (Phase 3 stub)', async () => {
+  it('GET /api/v1/auth/github/install-url requires authentication (Phase 3)', async () => {
     const request = new NextRequest('http://localhost:3000/api/v1/auth/github/install-url')
     const response = await getInstallUrl(request)
-    expect(response.status).toBe(503)
-    const body = await response.json()
-    expect(body.error.code).toBe('service_unavailable')
+    expect(response.status).toBe(401)
   })
 })

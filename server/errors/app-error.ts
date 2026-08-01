@@ -56,8 +56,8 @@ export class AppError extends Error {
     return new AppError('unauthorized', message)
   }
 
-  static forbidden(message = 'Forbidden') {
-    return new AppError('forbidden', message)
+  static forbidden(message = 'Forbidden', details?: unknown) {
+    return new AppError('forbidden', message, { details })
   }
 
   static notFound(message = 'Resource not found') {

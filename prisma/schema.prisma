@@ -329,8 +329,11 @@ model Installation {
   status               InstallationStatus @default(active)
   permissions          Json
   webhookEvents        String[]
+  accountLogin         String?
+  accountType          String?
   rateLimitRemaining   Int?
   rateLimitLimit       Int?
+  suspendedAt          DateTime?
   lastSyncAt           DateTime?
   syncStatus           SyncStatus         @default(idle)
   createdAt            DateTime           @default(now())
@@ -341,6 +344,7 @@ model Installation {
   deliveredEvents  WebhookEvent[]
 
   @@index([organizationId])
+  @@index([status])
 }
 
 // ---------------------------------------------------------------------------
@@ -350,6 +354,7 @@ model Installation {
 model Repository {
   id                        String    @id @default(uuid()) @db.Uuid
   githubId                  BigInt    @unique
+  nodeId                    String?
   installationId            String    @db.Uuid
   organizationId            String    @db.Uuid
   name                      String
@@ -358,17 +363,22 @@ model Repository {
   description               String?
   url                       String
   language                  String?
+  defaultBranch             String?
   isPrivate                 Boolean   @default(false)
+  archived                  Boolean   @default(false)
+  disabled                  Boolean   @default(false)
   stars                     Int       @default(0)
   forks                     Int       @default(0)
   openIssues                Int       @default(0)
   openPRs                   Int       @default(0)
   collaborators             Int       @default(0)
   topics                    String[]
+  permissions               Json?
   healthScore               Int?
   automationEnabled         Boolean   @default(false)
   automationIssuesResolved  Int       @default(0)
   automationPRsMerged       Int       @default(0)
+  connectedAt               DateTime?
   lastUpdatedGitHub         DateTime?
   deletedAt                 DateTime?
   createdAt                 DateTime  @default(now())
@@ -390,6 +400,7 @@ model Repository {
 
   @@index([organizationId])
   @@index([installationId])
+  @@index([deletedAt])
 }
 
 model Label {

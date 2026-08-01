@@ -8,22 +8,24 @@ import { PageHeader } from '@/components/shared/page-header'
 import { RepositoryTable } from '@/components/shared/repository-table'
 import { ActivityTimeline } from '@/components/shared/activity-timeline'
 import { HealthBadge } from '@/components/shared/health-badge'
-import {
-  mockRepositories,
-  mockDashboardStats,
-  mockActivityTimeline,
-} from '@/lib/mock-data'
+import { mockActivityTimeline } from '@/lib/mock-data'
+import { useConnectedRepositories } from '@/lib/hooks/use-github'
 
 export default function Dashboard() {
+  const { repositories, loading, error } = useConnectedRepositories()
 
-  const avgHealthScore = Math.round(
-    mockRepositories.reduce((acc, repo) => acc + repo.healthScore, 0) / mockRepositories.length
-  )
-  const automatedCount = mockRepositories.filter((r) => r.automationEnabled).length
+  const avgHealthScore =
+    repositories.length === 0
+      ? 0
+      : Math.round(
+          repositories.reduce((acc, repo) => acc + (repo.healthScore ?? 0), 0) /
+            repositories.length,
+        )
+  const automatedCount = repositories.filter((r) => r.automationEnabled).length
+  const openIssues = repositories.reduce((acc, repo) => acc + (repo.openIssues ?? 0), 0)
 
   return (
     <div className="space-y-8">
-      {/* Page Header */}
       <PageHeader
         title="Dashboard"
         description="Manage your repositories and track automation metrics in real-time"
@@ -37,7 +39,18 @@ export default function Dashboard() {
         }
       />
 
-      {/* Stats Grid */}
+      {error ? (
+        <Card className="border border-border">
+          <CardContent className="pt-6 text-sm text-muted-foreground">
+            {error}.{' '}
+            <Link href="/install" className="text-primary hover:underline">
+              Install the GitHub App
+            </Link>{' '}
+            to connect repositories.
+          </CardContent>
+        </Card>
+      ) : null}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border border-border">
           <CardContent className="pt-6">
@@ -45,11 +58,13 @@ export default function Dashboard() {
               <p className="text-sm text-muted-foreground font-medium">Total Repositories</p>
               <div className="flex items-baseline gap-2">
                 <p className="text-3xl font-bold text-foreground">
-                  {mockRepositories.length}
+                  {loading ? '—' : repositories.length}
                 </p>
-                <span className="text-xs text-green-600 flex items-center gap-1">
-                  <TrendingUp className="w-3 h-3" /> +2 this month
-                </span>
+                {!loading && repositories.length > 0 ? (
+                  <span className="text-xs text-green-600 flex items-center gap-1">
+                    <TrendingUp className="w-3 h-3" /> connected
+                  </span>
+                ) : null}
               </div>
             </div>
           </CardContent>
@@ -71,9 +86,9 @@ export default function Dashboard() {
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground font-medium">Automation Enabled</p>
               <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-bold text-foreground">{automatedCount}</p>
+                <p className="text-3xl font-bold text-foreground">{loading ? '—' : automatedCount}</p>
                 <span className="text-xs text-muted-foreground">
-                  of {mockRepositories.length}
+                  of {loading ? '—' : repositories.length}
                 </span>
               </div>
             </div>
@@ -85,19 +100,15 @@ export default function Dashboard() {
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground font-medium">Open Issues</p>
               <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-bold text-foreground">
-                  {mockDashboardStats.openIssues}
-                </p>
-                <span className="text-xs text-yellow-600">Active</span>
+                <p className="text-3xl font-bold text-foreground">{loading ? '—' : openIssues}</p>
+                <span className="text-xs text-yellow-600">From metadata</span>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Repositories Table */}
         <div className="lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-foreground">Your Repositories</h2>
@@ -107,10 +118,20 @@ export default function Dashboard() {
               </Button>
             </Link>
           </div>
-          <RepositoryTable repositories={mockRepositories.slice(0, 3)} />
+          {!loading && repositories.length === 0 ? (
+            <Card className="border border-border">
+              <CardContent className="pt-10 pb-10 text-center space-y-3">
+                <p className="text-muted-foreground">No connected repositories yet.</p>
+                <Link href="/install">
+                  <Button>Install GitHub App</Button>
+                </Link>
+              </CardContent>
+            </Card>
+          ) : (
+            <RepositoryTable repositories={repositories.slice(0, 3)} />
+          )}
         </div>
 
-        {/* Activity Sidebar */}
         <div>
           <Card className="border border-border sticky top-20">
             <CardHeader>
@@ -123,7 +144,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Link href="/ai-generator">
           <Card className="border border-border hover:shadow-md transition-shadow cursor-pointer h-full">

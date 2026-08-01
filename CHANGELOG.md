@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Phase 3 GitHub App:** `server/github` Octokit layer, install URL/callback, installation + repository metadata APIs, webhook platform (`installation` / `installation_repositories` / `repository`), BullMQ `github.webhooks` worker, live dashboard/repos/github-app UI data
+- Release hardening: mandatory install CSRF state, installation access verification, org hijack prevention, webhook idempotency/claim, Compose worker App env, webhook rate-limit skip, select-repos replace disconnect
+- `GITHUB_APP_SETUP.md`, `WEBHOOKS.md`, `PHASE3_IMPLEMENTATION_PLAN.md`, `PHASE3_RELEASE_AUDIT.md`
+- Prisma migration `20260801120000_phase3_github_app` (Installation + Repository additive fields)
+- RBAC permissions: `github:read`, `github:manage`, `repos:read`, `repos:manage`
+
+### Added (Phase 2)
+
 - **Phase 2 Authentication:** Auth.js (GitHub OAuth), database sessions, users/orgs/members/invitations APIs, RBAC
 - `AUTHENTICATION_FLOW.md` and `RBAC_DOCUMENTATION.md`
 - Prisma migration `20260801000000_phase2_auth` (user prefs + `Invitation`)

@@ -1,7 +1,9 @@
 import {
   assertAuthEnv,
+  assertGitHubAppEnv,
   assertInfrastructureEnv,
   isAuthConfigured,
+  isGitHubAppConfigured,
   isNextBuildPhase,
   parseEnv,
   type Env,
@@ -52,10 +54,21 @@ export type AppConfig = {
     csrfProtect: boolean
     url: string | undefined
   }
+  githubApp: {
+    configured: boolean
+    appId: string | undefined
+    clientId: string | undefined
+    clientSecret: string | undefined
+    privateKey: string | undefined
+    webhookSecret: string | undefined
+    slug: string
+    /** When true, dispatch webhooks in-process instead of BullMQ. */
+    inlineWebhooks: boolean
+  }
   features: {
     infrastructure: true
     auth: true
-    githubApp: false
+    githubApp: boolean
     repositorySync: false
     ai: false
     automation: false
@@ -69,10 +82,16 @@ export type AppConfig = {
 
 let cached: AppConfig | null = null
 
+function normalizePrivateKey(raw: string | undefined): string | undefined {
+  if (!raw) return undefined
+  return raw.replace(/\\n/g, '\n').trim()
+}
+
 function buildConfig(env: Env): AppConfig {
   const appEnv = env.APP_ENV ?? env.NODE_ENV
   const pretty = env.LOG_PRETTY ?? (appEnv === 'development' && process.env.CI !== 'true')
   const secret = env.AUTH_SECRET ?? env.NEXTAUTH_SECRET
+  const githubConfigured = isGitHubAppConfigured(env)
 
   return {
     env: env.NODE_ENV,
@@ -119,10 +138,20 @@ function buildConfig(env: Env): AppConfig {
       csrfProtect: env.AUTH_CSRF_PROTECT || appEnv === 'production',
       url: env.NEXTAUTH_URL ?? env.NEXT_PUBLIC_APP_URL,
     },
+    githubApp: {
+      configured: githubConfigured,
+      appId: env.GITHUB_APP_ID,
+      clientId: env.GITHUB_APP_CLIENT_ID,
+      clientSecret: env.GITHUB_APP_CLIENT_SECRET,
+      privateKey: normalizePrivateKey(env.GITHUB_APP_PRIVATE_KEY),
+      webhookSecret: env.GITHUB_WEBHOOK_SECRET,
+      slug: env.GITHUB_APP_SLUG,
+      inlineWebhooks: env.GITHUB_WEBHOOK_INLINE,
+    },
     features: {
       infrastructure: true,
       auth: true,
-      githubApp: false,
+      githubApp: githubConfigured,
       repositorySync: false,
       ai: false,
       automation: false,
@@ -159,7 +188,6 @@ export function getConfig(): AppConfig {
       if (env.INFRASTRUCTURE_STRICT || process.env.MAINTAINERAI_WORKER === '1') {
         throw error
       }
-      // Development / web without Docker: allow boot; readiness reports degraded.
     }
 
     try {
@@ -168,7 +196,14 @@ export function getConfig(): AppConfig {
       if (env.AUTH_STRICT) {
         throw error
       }
-      // Allow boot without OAuth secrets; auth endpoints report unavailable.
+    }
+
+    try {
+      assertGitHubAppEnv(env)
+    } catch (error) {
+      if (env.GITHUB_APP_STRICT) {
+        throw error
+      }
     }
   }
 

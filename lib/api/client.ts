@@ -20,8 +20,7 @@ export type ApiClientOptions = {
 }
 
 /**
- * Typed fetch helper for future UI → API migration.
- * Phase 1: scaffold only — no business endpoints wired in the UI yet.
+ * Typed fetch helper for UI → API calls (credentials included).
  */
 export async function apiFetch<T>(
   path: string,

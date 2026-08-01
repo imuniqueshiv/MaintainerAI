@@ -87,9 +87,10 @@ flowchart TB
 - Request pipeline: auth → tenant resolution → authorization (installation scope) → validation (Zod) → service call → response. See §7.
 
 ### 3.3 GitHub App
+- **Phase 3 status:** Implemented in `server/github/*` (JWT, installation tokens, Octokit REST, install URL).
 - App-level **JWT** signed with the App private key → exchanged for short-lived **installation access tokens** (cached in Redis, refreshed before expiry).
-- Octokit clients created per-installation. Central rate-limit accounting via Redis (`x-ratelimit-remaining`).
-- App permissions mirror `mockGitHubApp`: contents (r/w), issues (r/w), pull_requests (r/w), workflows (r).
+- Octokit clients created per-installation. Rate-limit snapshots stored on `Installation`.
+- Install callback + repository **metadata** connection are live; issue/PR content permissions remain future-facing.
 
 ### 3.4 GitHub OAuth
 - **Auth.js** GitHub provider for *user* identity (who is logged in). Distinct from the App installation (which grants repo access).
@@ -98,12 +99,13 @@ flowchart TB
 
 ### 3.5 GitHub Webhooks
 - Single receiver `/api/webhooks/github`. Verifies `X-Hub-Signature-256` (HMAC-SHA256 with webhook secret) before parsing.
-- Persists a `WebhookEvent` row (idempotency via `delivery_id`), enqueues a `webhook` job, returns `202` fast. No heavy work inline.
-- Handled events: `installation`, `installation_repositories`, `issues`, `issue_comment`, `pull_request`, `pull_request_review`, `push`, `release`.
+- Persists a `WebhookEvent` row (idempotency via `delivery_id`), enqueues `github.webhooks` / `github.webhook.dispatch`, returns `202` fast (inline fallback without Redis).
+- Phase 3 handled events: `installation`, `installation_repositories`, `repository`. All others are logged and ignored.
+- Issue/PR/push/release business processing is Phase 4+.
 
 ### 3.6 Octokit Layer
-- Thin wrapper (`server/github/*`) exposing typed methods used by services: list repos, get issue/PR, comment, label, assign, close, request review, list contributors, get CI checks.
-- Uses REST for writes, GraphQL for expensive reads (contributor stats, PR files) to reduce request counts.
+- Thin wrapper (`server/github/*`) exposing typed methods used by Phase 3 services: list installation repos, get repo metadata, get installation, rate limit, build install URL, verify user installation access. Issue/PR mutation helpers arrive with later phases.
+- Phase 3 uses **REST only**. GraphQL is reserved for later expensive read paths (contributor stats, PR files) and is not implemented yet.
 
 ### 3.7 Prisma + PostgreSQL
 - Prisma is the single data-access layer. Schema in `DATABASE_DESIGN.md`.

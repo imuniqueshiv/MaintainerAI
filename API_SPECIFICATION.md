@@ -1,9 +1,9 @@
 # MaintainerAI — API Specification
 
 > Complete REST surface for MaintainerAI v1.0.
-> Phase 2 implements Authentication, Users, Organizations, Invitations, and Settings under `/api/v1`.
-> Later groups (GitHub App, repositories, AI, automation, …) remain design targets until their milestones.
-> Maps to entities in `DATABASE_DESIGN.md` (+ Phase 2 `Invitation` extension) and UI routes in `app/`.
+> **Implemented today:** Phase 1 health/meta, Phase 2 Auth/Users/Orgs/Invitations/Settings, Phase 3 GitHub App / installations / repository metadata / webhooks.
+> Sections marked **Phase 4+** (or without a live `app/api` route) are design targets — do not treat them as shipped contracts.
+> Maps to entities in `DATABASE_DESIGN.md` and UI routes in `app/`.
 
 ## 1. Conventions
 
@@ -48,8 +48,8 @@
 | GET/POST | `/api/auth/[...nextauth]` | Auth.js GitHub OAuth (login, callback, session, signout) |
 | GET | `/api/v1/auth/session` | Current session + user |
 | POST | `/api/v1/auth/logout` | Invalidate session (`{ everywhere?: boolean }`) |
-| GET | `/api/v1/auth/github/install-url` | GitHub App install URL — **Phase 3 stub (503)** |
-| GET | `/api/v1/auth/github/callback` | App install callback — **Phase 3 stub (503)** |
+| GET | `/api/v1/auth/github/install-url` | Authenticated GitHub App install URL + CSRF state cookie |
+| GET | `/api/v1/auth/github/callback` | App install callback → upsert Installation → redirect |
 
 ## 4. Users
 
@@ -89,32 +89,35 @@
 
 | Method | Path | Description |
 | ------ | ---- | ----------- |
-| GET | `/api/v1/github/app` | GitHub App status, permissions, webhook events, rate limit (`mockGitHubApp`) |
+| GET | `/api/v1/github/app` | GitHub App + primary installation summary (live) |
 | GET | `/api/v1/github/installations` | List installations for user's orgs |
 | GET | `/api/v1/github/installations/:id` | Installation detail |
-| POST | `/api/v1/github/installations/:id/sync` | Trigger full resync → `202` (enqueues sync job) |
-| GET | `/api/v1/github/installations/:id/sync-status` | Sync progress |
-| DELETE | `/api/v1/github/installations/:id` | Uninstall / disconnect |
+| POST | `/api/v1/github/installations/:id` | Refresh installation + repository **metadata** (not issue/PR sync) |
+| GET | `/api/v1/github/installations/:id/status` | Health / sync / last webhook |
+| GET | `/api/v1/github/installations/:id/permissions` | Permission + webhook event snapshot |
+| GET | `/api/v1/github/installations/:id/repositories` | Discover accessible repos from GitHub |
+| POST | `/api/v1/github/installations/:id/repositories` | Connect selected repos (`githubIds`) |
+| DELETE | `/api/v1/github/installations/:id` | Local disconnect |
 | GET | `/api/v1/github/rate-limit` | Current rate-limit remaining/limit |
+
+> Full issue/PR repository sync (`…/sync`) is **Phase 4+** and is not implemented.
 
 ## 7. Repositories
 
 | Method | Path | Description |
 | ------ | ---- | ----------- |
-| GET | `/api/v1/repos` | List repos (filters: `?orgId`, `?q`, `?language`, `?private`, `?automationEnabled`) |
-| GET | `/api/v1/repos/:repoId` | Repo detail (command center) |
-| POST | `/api/v1/repos/import` | Import/connect repos from an installation (`/import` page) |
-| PATCH | `/api/v1/repos/:repoId` | Update settings (automationEnabled, etc.) |
-| POST | `/api/v1/repos/:repoId/sync` | Resync single repo → `202` |
+| GET | `/api/v1/repos` | List connected repos (filters: `?orgId`, `?q`, `?language`, `?private`) |
+| GET | `/api/v1/repos/:repoId` | Repo metadata detail |
+| POST | `/api/v1/repos/connect` | Connect repos from an installation |
+| POST | `/api/v1/repos/:repoId/refresh` | Refresh metadata from GitHub |
 | DELETE | `/api/v1/repos/:repoId` | Disconnect repo (soft delete) |
-| GET | `/api/v1/repos/:repoId/health` | Latest health metrics (`RepositoryHealth`) |
-| GET | `/api/v1/repos/:repoId/health/history` | Health trend over time |
-| POST | `/api/v1/repos/:repoId/health/recompute` | Recompute health → `202` |
-| GET | `/api/v1/repos/:repoId/insights` | AI insights list (`mockAIInsights`) |
-| POST | `/api/v1/repos/:repoId/insights/:insightId/resolve` | Mark resolved / apply quick fix |
-| GET | `/api/v1/repos/:repoId/labels` | Repo labels |
-| GET | `/api/v1/repos/:repoId/activity` | Activity timeline (`mockActivityTimeline`) |
-| GET | `/api/v1/dashboard` | Global dashboard stats (`mockDashboardStats`) |
+| GET | `/api/v1/repos/:repoId/health` | Latest health metrics — **Phase 4+** |
+| GET | `/api/v1/repos/:repoId/health/history` | Health trend — **Phase 4+** |
+| POST | `/api/v1/repos/:repoId/health/recompute` | Recompute health — **Phase 4+** |
+| GET | `/api/v1/repos/:repoId/insights` | AI insights — **Phase 5+** |
+| POST | `/api/v1/repos/:repoId/insights/:insightId/resolve` | Resolve insight — **Phase 5+** |
+| GET | `/api/v1/repos/:repoId/labels` | Repo labels — **Phase 4+** |
+| GET | `/api/v1/repos/:repoId/activity` | Activity timeline — **Phase 4+** |
 
 ## 8. Issues
 
@@ -244,7 +247,7 @@
 
 | Method | Path | Description |
 | ------ | ---- | ----------- |
-| POST | `/api/webhooks/github` | Verifies `X-Hub-Signature-256`, records `WebhookEvent` (idempotent by `X-GitHub-Delivery`), enqueues job, returns `202`. Handles `installation`, `installation_repositories`, `issues`, `issue_comment`, `pull_request`, `pull_request_review`, `push`, `release`. |
+| POST | `/api/webhooks/github` | Verifies `X-Hub-Signature-256`, records `WebhookEvent` (idempotent by `X-GitHub-Delivery`), enqueues `github.webhooks` job, returns `202`. Phase 3 handles `installation`, `installation_repositories`, `repository` only; all other events are logged and ignored. |
 
 ## 18. System
 

@@ -116,16 +116,20 @@ erDiagram
 | webhookEvents | TEXT[] | subscribed events |
 | rateLimitRemaining | INT NULL |
 | rateLimitLimit | INT NULL |
+| accountLogin | TEXT NULL | Phase 3 — GitHub account login cache |
+| accountType | TEXT NULL | Phase 3 — `User` \| `Organization` |
+| suspendedAt | TIMESTAMP NULL | Phase 3 — suspend tracking |
 | lastSyncAt | TIMESTAMP NULL |
 | syncStatus | ENUM(`idle`,`syncing`,`completed`,`failed`) |
 
-> Installation access tokens are **not** stored in Postgres — they are short-lived and cached in Redis.
+> Installation access tokens are **not** stored in Postgres — they are short-lived and cached in Redis (`gh:install-token:{id}`).
 
 ### 3.3 Repository
 
-**Repository** — mirror of a GitHub repo (from `mockRepositories`).
+**Repository** — connected GitHub repo **metadata** (Phase 3; no issue/PR sync yet).
 | id | UUID PK |
 | githubId | BIGINT UNIQUE |
+| nodeId | TEXT NULL | Phase 3 — GitHub node id |
 | installationId | UUID FK → Installation |
 | organizationId | UUID FK → Organization |
 | name | TEXT |
@@ -134,19 +138,24 @@ erDiagram
 | description | TEXT NULL |
 | url | TEXT |
 | language | TEXT NULL |
+| defaultBranch | TEXT NULL | Phase 3 |
 | isPrivate | BOOL |
+| archived | BOOL default false | Phase 3 |
+| disabled | BOOL default false | Phase 3 |
 | stars | INT default 0 |
 | forks | INT default 0 |
 | openIssues | INT default 0 |
 | openPRs | INT default 0 |
 | collaborators | INT default 0 |
 | topics | TEXT[] |
+| permissions | JSONB NULL | Phase 3 — permission snapshot |
 | healthScore | INT NULL | latest cached score |
 | automationEnabled | BOOL default false |
 | automationIssuesResolved | INT default 0 |
 | automationPRsMerged | INT default 0 |
+| connectedAt | TIMESTAMP NULL | Phase 3 — when connected |
 | lastUpdatedGitHub | TIMESTAMP NULL |
-| deletedAt | TIMESTAMP NULL |
+| deletedAt | TIMESTAMP NULL | soft disconnect |
 
 **Label** — repo-scoped labels.
 | id UUID PK | repositoryId FK | name TEXT | color TEXT | description TEXT NULL | UNIQUE(repositoryId, name) |

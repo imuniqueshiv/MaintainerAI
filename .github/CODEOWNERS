@@ -13,3 +13,7 @@
 /components/ @imuniqueshiv
 /lib/ @imuniqueshiv
 /hooks/ @imuniqueshiv
+/server/ @imuniqueshiv
+/prisma/ @imuniqueshiv
+/scripts/ @imuniqueshiv
+/tests/ @imuniqueshiv
